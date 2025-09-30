@@ -1,0 +1,80 @@
+/* custom_styles.css */
+
+/* Estilo para a sidebar fixa e escura */
+#sidebar-wrapper {
+    min-height: 100vh;
+    margin-left: -15rem;
+    transition: margin 0.25s ease-out;
+    background-color: #343a40; /* Cor escura */
+    color: #adb5bd;
+    position: fixed;
+    z-index: 1030;
+}
+
+/* Estilo para o conteúdo principal */
+#page-content-wrapper {
+    min-width: 100vw;
+    margin-left: 15rem; /* Ajuste para o tamanho da sidebar */
+}
+
+/* Largura da sidebar no desktop */
+@media (min-width: 768px) {
+    #sidebar-wrapper {
+        margin-left: 0;
+        width: 15rem;
+    }
+
+    #page-content-wrapper {
+        min-width: calc(100vw - 15rem);
+        margin-left: 15rem;
+    }
+    .toggled #page-content-wrapper {
+        margin-left: 0;
+    }
+}
+
+/* Estilo dos links da sidebar */
+.sidebar-heading {
+    padding: 1rem;
+    font-size: 1.2rem;
+    color: #f8f9fa;
+}
+
+.list-group-item {
+    background-color: #343a40;
+    color: #adb5bd;
+    border: none;
+    padding: 1rem 1.5rem;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.list-group-item:hover {
+    background-color: #495057;
+    color: #ffffff;
+}
+
+.list-group-item.active {
+    color: #ffffff;
+    background-color: #212529; /* Item ativo mais escuro */
+    border-left: 4px solid #0d6efd; /* Linha de destaque azul */
+}
+
+/* Estilos dos Cards de Resumo */
+.summary-card {
+    color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+    height: 100%;
+}
+/* Cores dos cards */
+.bg-red { background-color: #e74c3c !important; }
+.bg-cyan { background-color: #3498db !important; }
+.bg-orange { background-color: #f39c12 !important; }
+.bg-green-soft { background-color: #2ecc71 !important; }
+
+/* Estilo da Tabela */
+.trending-table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nova Cotação BID{% endblock %}
+
+{% block content %}
+
+    <h3 class="mb-4 text-dark">Iniciar Nova Cotação BID</h3>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-primary text-white">
+            <h6 class="m-0 fw-bold">Passo 1: Seleção Inicial</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'proxima_etapa_bid' %}">
+                {% csrf_token %}
+                <div class="row g-4">
+                    
+                    <div class="col-md-6">
+                        <label for="cliente_select" class="form-label fw-bold">Cliente</label>
+                        <div class="input-group">
+                            <input type="text" list="clientes-list" class="form-control" id="cliente_select" placeholder="Buscar ou selecionar cliente existente..." required>
+                            <datalist id="clientes-list">
+                                <option value="Transportadora Alfa Ltda.">
+                                <option value="Indústria Beta S/A">
+                            </datalist>
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#modalCadastroCliente">
+                                <i class="bi bi-person-add"></i> Cadastrar Novo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="tabela_antt" class="form-label fw-bold">Tabela ANTT para Frete Mínimo</label>
+                        <input type="text" list="antt-list" class="form-control" id="tabela_antt" placeholder="Selecione a tabela..." required>
+                        <datalist id="antt-list">
+                            <option value="ANTT- A">Tabela A – Lotação - Spot -  Contratação pontual - Conjunto completo</option>
+                            <option value="ANTT- B">Tabela B – Agregados - Sem alta eficiencia, Cavalo/Motorista</option>
+                            <option value="ANTT- C">Tabela C – Lotação de Alto Desempenho - Spot -Conjunto completo</option>
+                            <option value="ANTT- D">Tabela D – Agregados de Alto Desempenho - Cavalo/Motorista</option>
+                        </datalist>
+                    </div>
+
+                    
+
+
+                    <div class="col-12 text-end pt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-arrow-right-circle me-2"></i> Carregar e Prosseguir
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="modalCadastroCliente" tabindex="-1" aria-labelledby="modalCadastroClienteLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="modalCadastroClienteLabel">Cadastro Rápido de Cliente</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome_cliente" class="form-label">Nome/Razão Social</label>
+                        <input type="text" class="form-control" id="nome_cliente">
+                        <label for="nome_cliente" class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" id="nome_cliente">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> Salvar Cliente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

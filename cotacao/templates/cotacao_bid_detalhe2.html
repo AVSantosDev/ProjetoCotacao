@@ -1,0 +1,447 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}BID #{{ bid_id }} - Detalhes{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/3.0.2/css/buttons.dataTables.min.css"/>
+<style>
+    /* Ajusta a posição do campo de filtro global do DataTables */
+    div.dataTables_wrapper div.dataTables_filter {
+        text-align: right;
+        margin-bottom: 10px; 
+    }
+    /* Estiliza os campos de filtro por coluna */
+    #filter-row th {
+        padding: 5px 10px !important; /* Espaçamento menor */
+        border-top: none !important;
+        /* IMPORTANTE: Removemos 'pointer-events: none;' aqui para permitir o clique */
+    }
+    #filter-row input {
+        width: 100%;
+        padding: 4px;
+        font-size: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    /* OCULTA O ÍCONE DE ORDENAÇÃO NA LINHA DE FILTRO */
+    /* Isso garante que a seta de ordenação não apareça na linha de input */
+    #filter-row th::before,
+    #filter-row th::after {
+        content: none !important;
+    }
+
+    /* Configuração padrão para garantir que a ordenação só ocorra na linha de títulos (2ª linha do thead) */
+    #bid-routes-table thead tr:nth-child(2) th {
+        cursor: pointer; 
+        pointer-events: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+    <h3 class="mb-4 text-dark">Cotação BID: <span class="text-primary">BID-2025/{{ bid_id }}</span></h3>
+    <p class="mb-4">Cliente: **Transportadora Alfa Ltda.** | Tabela ANTT: **Carga Geral (Jul/2025)**</p>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light border-0">
+            <h6 class="m-0 fw-bold text-dark"><i class="bi bi-tools me-2"></i>Edição em Lote</h6>
+        </div>
+        <div class="card-body">
+            <form id="bulkEditForm" method="POST" action="{% url 'cotacao_bid_editar_round' bid_id=bid_id rota_id=0 %}">
+                {% csrf_token %}
+
+                <input type="hidden" id="bulk-selected-ids" name="selected_routes">
+                
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="bulk-field" class="form-label fw-bold">Campo a Editar</label>
+                        <select class="form-select" id="bulk-field" name="field_to_edit" required>
+                            <option value="">Selecione o Campo...</option>
+                            <option value="km_value">Valor KM Rodado (R$/KM)</option>
+                            <option value="percentage_increase">Acréscimo (%)</option>
+                            </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="bulk-value" class="form-label fw-bold">Novo Valor</label>
+                        <input type="number" step="0.01" class="form-control" id="bulk-value" name="new_value" placeholder="Ex: 3.50 ou 10.00" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-warning btn-lg fw-bold w-100" onclick="applyBulkEdit()">
+                            <i class="bi bi-pencil-square me-2"></i> Aplicar Edição em Lote
+                        </button>
+                        <small class="form-text text-muted d-block mt-2">Selecione as rotas e defina o novo valor. <span id="routes-selected-count" class="fw-bold text-primary">0</span> rotas selecionadas.</small>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light border-0 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-dark">Gerenciar Rotas e Cálculos</h6>
+            <div>
+                <button type="button" class="btn btn-success me-2">
+                    <i class="bi bi-upload me-1"></i> Upload Planilha de Rotas
+                </button>
+                <button type="button" class="btn btn-info text-white">
+                    <i class="bi bi-download me-1"></i> Exportar BID Preenchido
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle mb-0" id="bid-routes-table">
+                    <thead class="table-dark">
+                    <tr>
+                        <th scope="col" rowspan="3" class="text-center">
+                            <input type="checkbox" id="select-all-routes" title="Selecionar Todas">
+                        </th>
+                        
+                        <th scope="col" rowspan="3">Ações</th>
+                        <th scope="col" colspan="6">Dados da Rota (Preenchido via Upload)</th>
+                        <th scope="col" colspan="3" class="bg-warning text-dark">Dados Calculados (API)</th>
+                        <th scope="col" colspan="5" class="bg-light text-dark">Cotações por Round</th>
+                    </tr>
+                    <tr>
+                        <th scope="col">Cód. Rota</th>
+                        <th scope="col">Grupo Cliente</th>
+                        <th scope="col">Origem</th>
+                        <th scope="col">Destino</th>
+                        <th scope="col">Veículo</th>
+                        <th scope="col">Eixos</th>
+                        <th scope="col" class="text-nowrap">KM</th>
+                        <th scope="col">Pedágio</th>
+                        <th scope="col" class="text-nowrap">Frete Mínimo</th>
+                        <th scope="col">R1</th>
+                        <th scope="col">R2</th>
+                        <th scope="col">R3</th>
+                        <th scope="col">R4</th>
+                        <th scope="col">R5</th>
+                    </tr>
+                    
+                    <tr id="filter-row">
+                        <th></th> 
+                        <th></th> 
+                        <th></th> 
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                    <tbody class="table-group-divider">
+                        {% for rota in rotas %}
+                            <tr id="route-row-{{ rota.id }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="route-checkbox" data-route-id="{{ rota.id }}">
+                                </td>
+                                
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-danger delete-row" data-id="{{ rota.id }}">
+                                        <i class="bi bi-x-circle-fill"></i>
+                                    </button>
+                                </td>
+                                <td>{{ rota.cod }}</td>
+                                <td>{{ rota.grupo }}</td>
+                                <td>{{ rota.origem }}</td>
+                                <td>{{ rota.destino }}</td>
+                                <td>{{ rota.veiculo }}</td>
+                                <td>{{ rota.eixos }}</td>
+                                
+                                <td class="text-center">900km</td>
+                                <td class="text-center">R$ 150,00</td>
+                                <td class="text-center">R$ 2.500,00</td>
+                                
+                                <td class="text-center">{{ rota.R1 }}
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link text-primary edit-round-btn" 
+                                            title="Editar Cotação R1"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#roundCalcModal"
+                                            data-round="R1" 
+                                            data-route-id="{{ rota.id }}"
+                                            data-km-mock="900" 
+                                            data-km-value-mock="3.50"
+                                            data-percentage-mock="10.00">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </td>
+                                
+                                <td class="text-center">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary edit-round-btn"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#roundCalcModal"
+                                            data-round="R2" 
+                                            data-route-id="{{ rota.id }}"
+                                            data-km-mock="900" 
+                                            data-km-value-mock="3.50"
+                                            data-percentage-mock="0.00">Abrir</button>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-primary edit-round-btn"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#roundCalcModal"
+                                            data-round="R3" 
+                                            data-route-id="{{ rota.id }}"
+                                            data-km-mock="900" 
+                                            data-km-value-mock="3.50"
+                                            data-percentage-mock="0.00">Abrir</button>
+                                </td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="16" class="text-center text-muted py-4">Nenhuma rota carregada para este BID. Faça o upload da planilha.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-danger">⚠️ Lembre-se: Exclua as rotas que não dejesa calcular antes de solicitar o Pedágio!</span>
+            <button type="button" class="btn btn-warning btn-lg fw-bold" onclick="calculateRoutes()">
+                <i class="bi bi-map me-2"></i> Calcular KM, Pedágio e Frete Mínimo
+            </button>
+        </div>
+    </div>
+    <div class="modal fade" id="roundCalcModal" tabindex="-1" aria-labelledby="roundCalcModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="roundCalcModalLabel">Calcular Round</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="roundCalcForm" method="POST" action="">
+                        {% csrf_token %}
+
+                        <input type="hidden" id="modal-route-id" name="rota_id">
+                        <input type="hidden" id="modal-round-name" name="round_name">
+                        <input type="hidden" id="modal-route-km">
+                        
+                        <div class="mb-3">
+                            <label for="km-value" class="form-label fw-bold">Valor do KM Rodado (R$ por KM)</label>
+                            <input type="number" step="0.01" class="form-control" id="km-value" name="km_value" placeholder="Ex: 3.50" required>
+                            <div class="form-text">Este valor será multiplicado pelo KM da rota.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="percentage-increase" class="form-label fw-bold">Percentual de Acréscimo (%)</label>
+                            <input type="number" step="0.01" class="form-control" id="percentage-increase" name="percentage_increase" value="0.00" required>
+                            <div class="form-text">Acréscimo sobre o valor base.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="applyRoundCalculation()">
+                        <i class="bi bi-calculator me-1"></i> Aplicar Cálculo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+<datalist id="city-suggestions">
+    <option value="São Paulo - SP">
+    <option value="Rio de Janeiro - RJ">
+    <option value="Belo Horizonte - MG">
+    <option value="Curitiba - PR">
+    <option value="Porto Alegre - RS">
+    <option value="Recife - PE">
+    <option value="Salvador - BA">
+    <option value="Brasília - DF">
+</datalist>
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+
+<script>
+    // URL de destino, usando 0 como placeholder para ser substituído pelo JS
+    const BASE_URL_EDIT = "{% url 'cotacao_bid_editar_round' bid_id=bid_id rota_id=0 %}"; 
+    let bidRoutesTable;
+
+    $(document).ready(function() {
+        // 1. INICIALIZAÇÃO DO DATATABLES (Habilita Ordenação e Filtro Global)
+        bidRoutesTable = $('#bid-routes-table').DataTable({
+        "initComplete": function () {
+            this.api().columns().every(function (colIdx) {
+                // Colunas que queremos o filtro de busca dedicado
+                // Coluna 4: Origem, Coluna 5: Destino
+                var isLocationColumn = (colIdx === 4 || colIdx === 5);
+                
+                // Colunas para busca (Cód. Rota (2), Grupo (3), Origem (4), Destino (5), Veículo (6))
+                if (colIdx >= 2 && colIdx <= 6) {
+                    var column = this;
+                    var title = column.header().textContent;
+                    var thFilter = $('#filter-row th').eq(colIdx - 2);
+                    
+                    if(thFilter.length) {
+                        // Cria o input de busca
+                        var input = $('<input type="text" placeholder="Buscar ' + title + '" />');
+                        
+                        // SE FOR COLUNA DE LOCALIZAÇÃO (Origem ou Destino), adiciona o atributo list
+                        if (isLocationColumn) {
+                            input.attr('list', 'city-suggestions');
+                        }
+
+                        input.appendTo(thFilter.empty())
+                            .on('keyup change clear', function () {
+                                // Quando a busca é aplicada, o DataTables filtra pelo texto digitado
+                                if (column.search() !== this.value) {
+                                    column.search(this.value).draw();
+                                }
+                            });
+                    }
+                }
+            });
+        },
+        // ... (resto das configurações do DataTables mantidas) ...
+        "columnDefs": [
+            // Desativa ordenação e busca nas colunas de checkbox (0) e ações (1)
+            { "orderable": false, "targets": [0, 1] }, 
+            { "searchable": false, "targets": [0, 1] }
+        ],
+        "paging": true,
+        "searching": true,
+        "ordering": true,
+        "info": true,
+        "responsive": true,
+        "language": {
+            "url": "https://cdn.datatables.net/plug-ins/2.0.8/i18n/pt-BR.json"
+        }
+    });
+        
+        // 2. LÓGICA DE SELEÇÃO EM MASSA
+        
+        // Função para atualizar a contagem de rotas selecionadas
+        function updateSelectedCount() {
+            // Conta apenas os checkboxes que estão marcados
+            const selectedCount = $('#bid-routes-table tbody input.route-checkbox:checked').length;
+            $('#routes-selected-count').text(selectedCount);
+        }
+
+        // Evento para o checkbox "Selecionar Todas"
+        $('#select-all-routes').on('click', function(){
+            // Seleciona todos os checkboxes na página atual (DataTables)
+            var isChecked = this.checked;
+            bidRoutesTable.rows({ 'page': 'current' }).nodes().to$().find('input[type="checkbox"]').prop('checked', isChecked);
+            updateSelectedCount();
+        });
+
+        // Evento para seleção individual
+        $('#bid-routes-table tbody').on('change', 'input.route-checkbox', function(){
+            // Se um checkbox individual for desmarcado, desmarca o "Selecionar Todas"
+            if (!this.checked) {
+                $('#select-all-routes').prop('checked', false);
+            }
+            updateSelectedCount();
+        });
+
+    }); // FIM DO $(document).ready()
+
+    // 3. LÓGICA DE EDIÇÃO EM LOTE (Chamada pelo botão do bloco de Edição em Lote)
+    function applyBulkEdit() {
+        const selectedRoutes = [];
+        
+        // Percorre apenas os checkboxes que estão VISÍVEIS e MARCADOS
+        $('#bid-routes-table tbody input.route-checkbox:checked').each(function() {
+            selectedRoutes.push($(this).data('route-id'));
+        });
+
+        if (selectedRoutes.length === 0) {
+            alert("Selecione pelo menos uma rota para aplicar a edição em lote.");
+            return;
+        }
+
+        const field = $('#bulk-field').val();
+        const value = $('#bulk-value').val();
+
+        if (!field || !value) {
+             alert("Selecione o campo e preencha o novo valor para aplicar a edição.");
+             return;
+        }
+        
+        // Passa a lista de IDs para o campo oculto do formulário
+        $('#bulk-selected-ids').val(selectedRoutes.join(','));
+
+        if (confirm(`Deseja aplicar o valor "${value}" ao campo "${field}" para ${selectedRoutes.length} rotas?`)) {
+            // O formulário fará o POST para a view do Django
+            $('#bulkEditForm').submit();
+        }
+    }
+
+
+    // 4. LÓGICA DE EDIÇÃO DE ROUND INDIVIDUAL (Modal)
+
+    var roundCalcModalElement = document.getElementById('roundCalcModal');
+    
+    roundCalcModalElement.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        
+        // Extrai os dados
+        const round = button.getAttribute('data-round');
+        const routeId = button.getAttribute('data-route-id');
+        const kmMock = button.getAttribute('data-km-mock');
+        const kmValueMock = button.getAttribute('data-km-value-mock');
+        const percentageMock = button.getAttribute('data-percentage-mock');
+        
+        // 1. Atualiza o modal
+        this.querySelector('#roundCalcModalLabel').textContent = `Editar ${round} - Rota #${routeId}`;
+        this.querySelector('#modal-route-id').value = routeId;
+        this.querySelector('#modal-route-km').value = kmMock;
+        this.querySelector('#modal-round-name').value = round;
+
+        // 2. Preenche os campos de input
+        this.querySelector('#km-value').value = kmValueMock;
+        this.querySelector('#percentage-increase').value = percentageMock;
+        
+        // 3. Define a action do formulário INDIVIDUAL
+        const form = this.querySelector('#roundCalcForm');
+        const finalUrl = BASE_URL_EDIT.replace('/0/', '/' + routeId + '/');
+        form.setAttribute('action', finalUrl);
+    });
+
+    function applyRoundCalculation() {
+        const form = document.getElementById('roundCalcForm');
+        form.submit();
+    }
+    
+    // JS para exclusão de linha (MANTIDO)
+    document.querySelectorAll('.delete-row').forEach(button => {
+        button.addEventListener('click', (e) => {
+            if (confirm('Tem certeza que deseja excluir esta linha?')) {
+                const rowId = e.currentTarget.getAttribute('data-id');
+                // Remove visualmente e do DataTables (se necessário)
+                $('#route-row-'+rowId).remove();
+                alert('Linha excluída. Recomenda-se recalcular.');
+            }
+        });
+    });
+    
+    function calculateRoutes() {
+        alert('Chamando API Externa para cálculo de KM, Pedágio e Frete Mínimo para todas as rotas restantes. Aguarde...');
+    }
+
+</script>
+{% endblock %}

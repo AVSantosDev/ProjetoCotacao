@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cotação BID - Listagem{% endblock %}
+
+{% block content %}
+
+    <h3 class="mb-4 text-dark">Gerenciamento de Cotações BID</h3>
+
+    <div class="d-flex justify-content-end mb-4">
+        <a href="{% url 'cotacao_bid_nova' %}" class="btn btn-primary btn-lg shadow">
+            <i class="bi bi-plus-circle me-2"></i> Criar Nova Cotação BID
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light border-0">
+            <h6 class="m-0 fw-bold text-dark"><i class="bi bi-funnel-fill me-1"></i> Filtrar Cotações</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-10">
+                    <input type="text" class="form-control form-control-lg" placeholder="Digite o número da cotação BID ou parte do nome do cliente para buscar..." name="search_bid_number">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light border-0">
+            <h6 class="m-0 fw-bold text-dark">Resultados da Busca</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="table-primary">
+                            <th scope="col">Nº Cotação BID</th>
+                            <th scope="col">Cliente Cotado</th>
+                            <th scope="col">Data da Cotação</th>
+                            <th scope="col">Round Atual</th>
+                            <th scope="col">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold text-primary">BID-2025/1001</td>
+                            <td>Transportadora Alfa Ltda.</td>
+                            <td>29/09/2025</td>
+                            <td><span class="badge bg-warning text-dark">Round 3</span></td>
+                            <td>
+                                <a href="{% url 'cotacao_bid_detalhe' bid_id=1001 %}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-folder2-open me-1"></i> Abrir Cotação
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

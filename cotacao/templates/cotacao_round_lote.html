@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cotação em Lote - Round {{ round_name }}{% endblock %}
+
+{% block content %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-dark">Cotação em Lote: Round <span class="text-danger">{{ round_name }}</span></h3>
+        <a href="{% url 'cotacao_bid_detalhe' bid_id=bid_id %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left-circle-fill me-1"></i> Voltar para Detalhe do BID
+        </a>
+    </div>
+    <p class="mb-4">BID: **BID-2025/{{ bid_id }}** | Total de Rotas Selecionadas: <span id="selected-count" class="fw-bold text-success">{{ total_rotas }}</span></p>
+    
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h6 class="m-0 fw-bold">Aplicar Regra de Cálculo em Lote</h6>
+                </div>
+                <div class="card-body">
+                    {# 1. Formulário principal para a cotação em lote #}
+                    <form id="loteCalcForm" method="post" action="{% url 'cotacao_round_lote' bid_id=bid_id round_name=round_name %}">
+                        {% csrf_token %}
+                        
+                        {# Input oculto para armazenar os IDs das rotas selecionadas via JS #}
+                        <input type="hidden" name="selected_route_ids" id="selectedRouteIdsInput" value="">
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="km-value-lote" class="form-label fw-bold">Valor do KM Rodado (R$ por KM)</label>
+                                <input type="number" step="0.01" class="form-control" id="km-value-lote" name="km_value_lote" placeholder="Ex: 3.50">
+                            </div>
+                            
+                            
+                            <div class="col-md-4 mb-3">
+                            <label for="percentage-increase-lote" class="form-label fw-bold">Percentual de Acréscimo (%)</label>
+                                <input type="text" 
+                                    class="form-control" 
+                                    id="percentage-increase-lote" 
+                                    name="percentage_increase_lote" 
+                                    value="%" 
+                                    placeholder="Ex: 5.05%"
+                                    onfocus="clearOnFocus(this); setCaretPosition(this);"
+                                    onblur="formatPercentageFinal(this)"> 
+                                <div class="form-text">Percentual de acréscimo sobre o valor base.</div>
+                            </div>
+                                                    <div class="col-md-4 mb-3 d-flex align-items-end">
+                                <button type="button" onclick="submitLoteForm()" class="btn btn-success btn-lg fw-bold w-100">
+                                    <i class="bi bi-calculator me-2"></i> Aplicar em <span id="btn-selected-count">{{ total_rotas }}</span> Rotas
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h4 class="mt-5 mb-3 text-dark">Rotas Afetadas pela Regra</h4>
+
+    {# 2. Área de Filtros #}
+    <div class="card shadow mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="filter-origem" class="form-label">Filtrar Origem</label>
+                    <input type="text" class="form-control" id="filter-origem" placeholder="Ex: Curitiba" onkeyup="applyFilter()">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="filter-destino" class="form-label">Filtrar Destino</label>
+                    <input type="text" class="form-control" id="filter-destino" placeholder="Ex: Florianópolis" onkeyup="applyFilter()">
+                </div>
+                <div class="col-md-4 d-flex align-items-end mb-3">
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="clearFilters()">Limpar Filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle mb-0" id="lote-routes-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col" class="text-center" style="width: 50px;">
+                                <input type="checkbox" id="select-all">
+                            </th>
+                            <th scope="col">Cód. Rota</th>
+                            <th scope="col">Origem</th> {# Coluna Separada #}
+                            <th scope="col">Destino</th> {# Coluna Separada #}
+                            <th scope="col">Veículo</th>
+                            <th scope="col" class="text-nowrap">KM</th>
+                            <th scope="col" class="bg-warning text-dark">Pedágio</th> {# Coluna Adicionada #}
+                            <th scope="col" class="bg-warning text-dark">Frete Mínimo</th> {# Coluna Adicionada #}
+                            <th scope="col" class="bg-light text-dark">{{ round_name }} Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-group-divider">
+                        {% for rota in rotas %}
+                            <tr data-origem="{{ rota.origem|lower }}" data-destino="{{ rota.destino|lower }}">
+                                <td class="text-center">
+                                    <input type="checkbox" name="route_id" class="route-checkbox" value="{{ rota.id }}" checked>
+                                </td>
+                                <td>{{ rota.cod }}</td>
+                                <td>{{ rota.origem }}</td> {# Valor #}
+                                <td>{{ rota.destino }}</td> {# Valor #}
+                                <td>{{ rota.veiculo }} ({{ rota.eixos }} eixos)</td>
+                                <td class="text-center">{{ rota.km }} km</td>
+                                <td class="text-center">R$ 150,00</td> {# MOCK para Pedágio #}
+                                <td class="text-center">R$ 2.500,00</td> {# MOCK para Frete Mínimo #}
+                                <td class="text-center fw-bold">{{ rota.get_round_price }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">Nenhuma rota encontrada para este BID.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Armazena a contagem atual de rotas visíveis e selecionadas
+    var initialTotalRoutes = {{ total_rotas }};
+    
+    document.addEventListener('DOMContentLoaded', (event) => {
+        // Inicializa o contador de rotas selecionadas
+        updateSelectedCount();
+    });         
+
+    // ----------------------------------------------------------------------
+    // 3. Lógica de Checkbox (Seleção)
+    // ----------------------------------------------------------------------
+
+    const selectAllCheckbox = document.getElementById('select-all');
+    const routeCheckboxes = document.querySelectorAll('.route-checkbox');
+
+    // Listener para o checkbox "Selecionar Todos"
+    selectAllCheckbox.addEventListener('change', () => {
+        routeCheckboxes.forEach(checkbox => {
+            // Só altera se a linha estiver VISÍVEL
+            if (checkbox.closest('tr').style.display !== 'none') {
+                checkbox.checked = selectAllCheckbox.checked;
+            }
+        });
+        updateSelectedCount();
+    });
+
+    // Listener para os checkboxes individuais
+    routeCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            updateSelectedCount();
+        });
+    });
+
+    function updateSelectedCount() {
+        // Conta apenas os checkboxes que estão checados E suas linhas estão visíveis
+        const selectedVisible = Array.from(routeCheckboxes).filter(checkbox => 
+            checkbox.checked && checkbox.closest('tr').style.display !== 'none'
+        ).length;
+
+        // Atualiza os contadores na tela
+        document.getElementById('selected-count').textContent = selectedVisible;
+        document.getElementById('btn-selected-count').textContent = selectedVisible;
+        currentSelectedCount = selectedVisible;
+    }
+
+    // ----------------------------------------------------------------------
+    // 4. Lógica de Filtro
+    // ----------------------------------------------------------------------
+
+    function applyFilter() {
+        const filterOrigem = document.getElementById('filter-origem').value.toLowerCase().trim();
+        const filterDestino = document.getElementById('filter-destino').value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        const allRoutes = document.querySelectorAll('#lote-routes-table tbody tr');
+
+        allRoutes.forEach(row => {
+            const origem = row.getAttribute('data-origem');
+            const destino = row.getAttribute('data-destino');
+            
+            const matchOrigem = origem.includes(filterOrigem);
+            const matchDestino = destino.includes(filterDestino);
+
+            if (matchOrigem && matchDestino) {
+                row.style.display = ''; // Mostra a linha
+                visibleCount++;
+            } else {
+                row.style.display = 'none'; // Esconde a linha
+                // Garante que a rota escondida não fique selecionada (opcional, mas boa prática)
+                row.querySelector('.route-checkbox').checked = false; 
+            }
+        });
+        
+        // Atualiza a contagem de selecionados (já que escondemos e desmarcamos)
+        updateSelectedCount();
+    }
+    
+    function clearFilters() {
+        document.getElementById('filter-origem').value = '';
+        document.getElementById('filter-destino').value = '';
+        applyFilter();
+    }
+
+    // ----------------------------------------------------------------------
+    // 5. Submissão do Formulário
+    // ----------------------------------------------------------------------
+    
+    function submitLoteForm() {
+        if (currentSelectedCount === 0) {
+            alert('Por favor, selecione pelo menos uma rota para aplicar a cotação em lote.');
+            return;
+        }
+
+        // 1. Coleta os IDs de todas as rotas selecionadas
+        const selectedIds = Array.from(routeCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+
+        // 2. Coloca os IDs no input oculto para serem enviados ao Django
+        document.getElementById('selectedRouteIdsInput').value = selectedIds.join(',');
+
+        // 3. Submete o formulário
+        document.getElementById('loteCalcForm').submit();
+    }
+
+/*FORMATACAO %*/
+function setCaretPosition(input) {
+    // Atraso de 1ms para garantir que o navegador tenha completado o 'onfocus'
+    setTimeout(() => {
+        const value = input.value;
+        
+        // 1. Calcula a posição: é o comprimento da string menos o " %" (3 caracteres)
+        let position = value.length;
+        if (value.endsWith(' %')) {
+            position -= 3;
+        }
+
+        // 2. Define a posição inicial e final da seleção
+        if (position >= 0) {
+            input.setSelectionRange(position, position);
+        }
+    }, 1);
+}
+
+// Mantenha a função clearOnFocus (ajustada para remover o % temporariamente)
+function clearOnFocus(input) {
+    const initialFormattedValue = '0,00 %'; 
+    
+    if (input.value === initialFormattedValue) {
+        input.value = '';
+    }
+    // Remove o % e o espaço do valor para facilitar a digitação.
+    // A função setCaretPosition será chamada logo em seguida para posicionar o cursor.
+    input.value = input.value.replace(' %', '').trim(); 
+}
+
+// Mantenha a função formatPercentageFinal (onblur)
+function formatPercentageFinal(input) {
+    let value = input.value;
+    
+    // 1. Limpa o % e troca , por . para que o parseFloat funcione
+    value = value.replace('%', '').replace(',', '.').trim();
+    
+    let num = parseFloat(value);
+
+    // 2. Se o número for inválido, define como 0,00 %
+    if (isNaN(num) || !isFinite(num) || value === '') {
+        input.value = '0,00 %';
+        return;
+    }
+    
+    // 3. Força a formatação para 2 casas decimais e usa o formato local (pt-BR)
+    let formattedValue = num.toLocaleString('pt-BR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    });
+    
+    // 4. Define o valor final no campo
+    input.value = formattedValue + ' %';
+}
+</script>
+{% endblock %}

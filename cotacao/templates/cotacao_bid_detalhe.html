@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}BID #{{ bid_id }} - Detalhes{% endblock %}
+
+{% block content %}
+
+    <h3 class="mb-4 text-dark">Cotação BID: <span class="text-primary">BID-2025/{{ bid_id }}</span></h3>
+    <p class="mb-4">Cliente: **Transportadora Alfa Ltda.** | Tabela ANTT: **Carga Geral (Jul/2025)**</p>
+    
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-light border-0 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-dark">Gerenciar Rotas e Cálculos</h6>
+            <div class="d-flex align-items-center">
+                
+                {# --- NOVO: Dropdown de Ação em Lote --- #}
+                <div class="dropdown me-3">
+                    <button class="btn btn-primary dropdown-toggle fw-bold" type="button" id="dropdownLoteButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-calculator me-1"></i> Ação em Lote
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownLoteButton">
+                        <h6 class="dropdown-header">Escolha o Round para Cotação</h6>
+                        <li><a class="dropdown-item" href="#" onclick="goToLoteCotacao('R1')">Round 1 (R1)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="goToLoteCotacao('R2')">Round 2 (R2)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="goToLoteCotacao('R3')">Round 3 (R3)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="goToLoteCotacao('R4')">Round 4 (R4)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="goToLoteCotacao('R5')">Round 5 (R5)</a></li>
+                    </ul>
+                </div>
+                
+                <button type="button" class="btn btn-success me-2">
+                    <i class="bi bi-upload me-1"></i> Upload Rotas
+                </button>
+                <button type="button" class="btn btn-info text-white">
+                    <i class="bi bi-download me-1"></i> Exportar
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped align-middle mb-0" id="bid-routes-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col" rowspan="2">Ações</th>
+                            <th scope="col" colspan="6">Dados da Rota (Preenchido via Upload)</th>
+                            <th scope="col" colspan="3" class="bg-warning text-dark">Dados Calculados (API)</th>
+                            <th scope="col" colspan="5" class="bg-light text-dark">Cotações por Round</th>
+                        </tr>
+                        <tr>
+                            <th scope="col">Cód. Rota</th>
+                            <th scope="col">Grupo Cliente</th>
+                            <th scope="col">Origem</th>
+                            <th scope="col">Destino</th>
+                            <th scope="col">Veículo</th>
+                            <th scope="col">Eixos</th>
+                            <th scope="col" class="text-nowrap">KM</th>
+                            <th scope="col">Pedágio</th>
+                            <th scope="col" class="text-nowrap">Frete Mínimo</th>
+                            <th scope="col">R1</th>
+                            <th scope="col">R2</th>
+                            <th scope="col">R3</th>
+                            <th scope="col">R4</th>
+                            <th scope="col">R5</th>
+                        </tr>
+                    </thead>
+                    
+                    <tbody class="table-group-divider">
+                        {% for rota in rotas %}
+                            <tr id="route-row-{{ rota.id }}">
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-danger delete-row" data-id="{{ rota.id }}">
+                                        <i class="bi bi-x-circle-fill"></i>
+                                    </button>
+                                </td>
+                                <td>{{ rota.cod }}</td>
+                                <td>{{ rota.grupo }}</td>
+                                <td>{{ rota.origem }}</td>
+                                <td>{{ rota.destino }}</td>
+                                <td>{{ rota.veiculo }}</td>
+                                <td>{{ rota.eixos }}</td>
+                                
+                                <td class="text-center">{{ rota.km }}km</td> {# Usando o campo KM do MOCK #}
+                                <td class="text-center">R$ 150,00</td>
+                                <td class="text-center">R$ 2.500,00</td>
+                                
+                                <td class="text-center">{{ rota.R1 }}
+                                    <button type="button" 
+                                        class="btn btn-sm btn-link text-primary edit-round-btn" 
+                                        title="Editar Cotação R1"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#roundCalcModal"
+                                        data-round="R1" 
+                                        data-route-id="{{ rota.id }}"
+                                        data-km-mock="{{ rota.km }}" 
+                                        data-km-value-mock="3.50"
+                                        data-percentage-mock="10.00">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </td>
+                                
+                                <td class="text-center">{{ rota.R2 }}
+                                    <button type="button" 
+                                        class="btn btn-sm btn-outline-primary edit-round-btn"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#roundCalcModal"
+                                        data-round="R2" 
+                                        data-route-id="{{ rota.id }}"
+                                        data-km-mock="{{ rota.km }}" 
+                                        data-km-value-mock="3.50"
+                                        data-percentage-mock="0.00">Cotar</button>
+                                </td>
+                                <td class="text-center">{{ rota.R3 }}
+                                    <button type="button" 
+                                        class="btn btn-sm btn-outline-primary edit-round-btn"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#roundCalcModal"
+                                        data-round="R3" 
+                                        data-route-id="{{ rota.id }}"
+                                        data-km-mock="{{ rota.km }}" 
+                                        data-km-value-mock="3.50"
+                                        data-percentage-mock="0.00">Cotar</button>
+                                </td>
+                                <td class="text-center">{{ rota.R4 }}</td>
+                                <td class="text-center">{{ rota.R5 }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="15" class="text-center text-muted py-4">Nenhuma rota carregada para este BID. Faça o upload da planilha.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-danger">⚠️ Lembre-se: Exclua as rotas que não deseja calcular antes de solicitar o Pedágio!</span>
+            <button type="button" class="btn btn-warning btn-lg fw-bold" onclick="calculateRoutes()">
+                <i class="bi bi-map me-2"></i> Calcular KM, Pedágio e Frete Mínimo
+            </button>
+        </div>
+    </div>
+    
+    {# --- Modal de Edição Individual --- #}
+    <div class="modal fade" id="roundCalcModal" tabindex="-1" aria-labelledby="roundCalcModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="roundCalcModalLabel">Calcular Round</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="roundCalcForm" method="POST" action="">
+                        {% csrf_token %}
+
+                        <input type="hidden" id="modal-route-id" name="rota_id">
+                        <input type="hidden" id="modal-round-name" name="round_name">
+                        <input type="hidden" id="modal-route-km">
+                        
+                        <div class="mb-3">
+                            <label for="km-value" class="form-label fw-bold">Valor do KM Rodado (R$ por KM)</label>
+                            <input type="number" step="0.01" class="form-control" id="km-value" name="km_value" placeholder="Ex: 3.50" required>
+                            <div class="form-text">Este valor será multiplicado pelo KM da rota.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="percentage-increase" class="form-label fw-bold">Percentual de Acréscimo (%)</label>
+                            <input type="number" step="0.01" class="form-control" id="percentage-increase" name="percentage_increase" value="0.00" required>
+                            <div class="form-text">Acréscimo sobre o valor base.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="applyRoundCalculation()">
+                        <i class="bi bi-calculator me-1"></i> Aplicar Cálculo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ----------------------------------------------------------------------
+    // NOVO: Funcionalidade de Ação em Lote
+    // ----------------------------------------------------------------------
+    // 🚨 CORREÇÃO: URL de destino para Cotação em Lote (Removido 'cotacao:')
+    const BASE_URL_LOTE = "{% url 'cotacao_round_lote' bid_id=bid_id round_name='ROUND' %}"; 
+    
+    function goToLoteCotacao(roundName) {
+        // Redireciona para a view de cálculo em lote
+        const finalUrl = BASE_URL_LOTE.replace('ROUND', roundName); 
+        window.location.href = finalUrl;
+    }
+    // ----------------------------------------------------------------------
+
+    // 🚨 CORREÇÃO: URL de destino para edição INDIVIDUAL (Removido 'cotacao:')
+    const BASE_URL_EDIT = "{% url 'cotacao_bid_editar_round' bid_id=bid_id rota_id=0 %}"; 
+
+    // Captura o modal e adiciona o listener para configurar os dados antes de abrir
+    var roundCalcModalElement = document.getElementById('roundCalcModal');
+    
+    roundCalcModalElement.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        
+        // Extrai os dados dos atributos data-* do botão
+        const round = button.getAttribute('data-round');
+        const routeId = button.getAttribute('data-route-id');
+        const kmMock = button.getAttribute('data-km-mock');
+        const kmValueMock = button.getAttribute('data-km-value-mock');
+        const percentageMock = button.getAttribute('data-percentage-mock');
+        
+        // 1. Atualiza o título e os campos ocultos do modal
+        this.querySelector('#roundCalcModalLabel').textContent = `Editar ${round} - Rota #${routeId}`;
+        this.querySelector('#modal-route-id').value = routeId;
+        this.querySelector('#modal-route-km').value = kmMock;
+        this.querySelector('#modal-round-name').value = round;
+
+        // 2. Preenche os campos de input com os valores da rota
+        this.querySelector('#km-value').value = kmValueMock;
+        this.querySelector('#percentage-increase').value = percentageMock;
+        
+        // 3. Define a action do formulário para o POST (URL com a rota correta)
+        const form = this.querySelector('#roundCalcForm');
+        // Substitui o placeholder '0' pelo ID real na URL do formulário
+        const finalUrl = BASE_URL_EDIT.replace('/0/', '/' + routeId + '/'); 
+        form.setAttribute('action', finalUrl);
+    });
+
+    // Função que submete o formulário (chamada pelo botão "Aplicar Cálculo")
+    function applyRoundCalculation() {
+        const form = document.getElementById('roundCalcForm');
+        // Isso dispara a requisição POST para a URL definida acima
+        form.submit();
+    }
+
+    // JS para exclusão de linha (Visual) - MANTIDO
+    document.querySelectorAll('.delete-row').forEach(button => {
+        button.addEventListener('click', (e) => {
+            if (confirm('Tem certeza que deseja excluir esta linha?')) {
+                const rowId = e.currentTarget.getAttribute('data-id');
+                document.getElementById(`route-row-${rowId}`).remove();
+                alert('Linha excluída. Recomenda-se recalcular.');
+            }
+        });
+    });
+    
+    function calculateRoutes() {
+        alert('Chamando API Externa para cálculo de KM, Pedágio e Frete Mínimo para todas as rotas restantes. Aguarde...');
+        // Ação AJAX para chamar a View do Django que integra com a API de rotas.
+    }
+</script>
+{% endblock %}
