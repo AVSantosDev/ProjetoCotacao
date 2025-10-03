@@ -1,5 +1,5 @@
 # cotacao/views.py
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.urls import reverse
 from .forms import ClienteForm
@@ -233,10 +233,6 @@ def cadastro_cliente_view(request):
     return render(request, 'cadastro_cliente.html', context)
 
 
-
-
-
-
 ## metodo para listar todos os clientes
 def lista_clientes_view(request):
     """
@@ -247,7 +243,7 @@ def lista_clientes_view(request):
 
 
     #parametros de paginação limita em padrão 20 cadastros por pagina
-    limite_str = request.GET.get('limite',20)
+    limite_str = request.GET.get('limite','20').strip()
     page = request.GET.get('page',1)##pagina 1 
 
 
@@ -312,6 +308,28 @@ def lista_clientes_view(request):
 
     return render(request, 'lista_clientes.html', context)
 
+
+def editar_cliente_view(request, cliente_id):
+    cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
+    
+
+    if request.method == 'POST':
+        form = ClienteForm(request.POST, instance=cliente)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_clientes')
+    
+    else:
+        form = ClienteForm(instance=cliente)
+
+
+        context = {
+            'form': form,
+            'titulo':'EditarCliente',
+            'cliente_id': cliente_id,
+        }
+
+    return render(request,'editar_cliente.html',context)
 
 
 

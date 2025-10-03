@@ -51,6 +51,7 @@ urlpatterns = [
     path('cadastro/cliente/', views.cadastro_cliente_view, name='cadastro_cliente'), 
     path('lista/clientes', views.lista_clientes_view, name='lista_clientes'),
     path('gerar-clientes-teste/', views.gerar_clientes_teste_view, name='gerar_clientes_teste'),
+    path('clientes/editar/<int:cliente_id>/', views.editar_cliente_view, name='editar_cliente'),
 
 
     # Rotas de Cotação

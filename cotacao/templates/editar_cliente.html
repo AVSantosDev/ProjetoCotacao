@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Editar Cliente{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">Editar Cliente (ID: {{ cliente_id }})</h6>
+                
+                <a href="{% url 'lista_clientes' %}" class="btn btn-warning btn-sm me-2">
+                    <i class="bi bi-search me-1"></i> Consultar Clientes
+                </a>
+            </div>
+            <div class="card-body">
+                
+                <form method="post" action="{% url 'editar_cliente' cliente_id %}" novalidate>
+                    {% csrf_token %}
+                    
+                    <h5 class="mb-3 text-primary">Dados Principais</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.razaoSocial.id_for_label }}" class="form-label">Razão Social (*)</label>
+                            {{ form.razaoSocial }}
+                            {% for error in form.razaoSocial.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.cnpj.id_for_label }}" class="form-label">CNPJ (*)</label>
+                            {{ form.cnpj }}
+                            {% for error in form.cnpj.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.telefone.id_for_label }}" class="form-label">Telefone</label>
+                            {{ form.telefone }}
+                            {% for error in form.telefone.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">E-mail (*)</label>
+                            {{ form.email }}
+                            {% for error in form.email.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.inscEstadual.id_for_label }}" class="form-label">Inscrição Estadual</label>
+                            {{ form.inscEstadual }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.inscMunicipal.id_for_label }}" class="form-label">Inscrição Municipal</label>
+                            {{ form.inscMunicipal }}
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+
+                    <h5 class="mb-3 text-primary">Endereço</h5>
+                    <div class="row">
+                        <div class="col-md-7 mb-3">
+                            <label for="{{ form.logradouro.id_for_label }}" class="form-label">Logradouro (*)</label>
+                            {{ form.logradouro }}
+                            {% for error in form.logradouro.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.numeroLogradouro.id_for_label }}" class="form-label">Número (*)</label>
+                            {{ form.numeroLogradouro }}
+                            {% for error in form.numeroLogradouro.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.cep.id_for_label }}" class="form-label">CEP (*)</label>
+                            {{ form.cep }}
+                            {% for error in form.cep.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.bairro.id_for_label }}" class="form-label">Bairro (*)</label>
+                            {{ form.bairro }}
+                            {% for error in form.bairro.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.cidade.id_for_label }}" class="form-label">Cidade (*)</label>
+                            {{ form.cidade }}
+                            {% for error in form.cidade.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.pais.id_for_label }}" class="form-label">País (*)</label>
+                            {{ form.pais }}
+                            {% for error in form.pais.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">Nome do Estado(*)</label>
+                            {{ form.estado }}
+                            {% for error in form.estado.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.sgEstado.id_for_label }}" class="form-label">Sigla Estado (UF)(*)</label>
+                            {{ form.sgEstado }}
+                            {% for error in form.sgEstado.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-check mb-3">
+                                {{ form.situacao }}
+                                <label class="form-check-label" for="{{ form.situacao.id_for_label }}">
+                                    Cliente Ativo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-success mt-3">
+                        <i class="bi bi-arrow-clockwise me-2"></i> **Atualizar Cliente**
+                    </button>
+                    <a href="{% url 'lista_clientes' %}" class="btn btn-secondary mt-3">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+{% endblock extra_js %}
