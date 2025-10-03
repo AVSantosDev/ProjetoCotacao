@@ -1,6 +1,8 @@
 # cotacao/views.py
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.urls import reverse
+from .forms import ClienteForm
 
 # --- DEFINIÇÃO DO MOCK DE DADOS ---
 # Use uma lista de dicionários para simular o banco de dados.
@@ -190,3 +192,46 @@ def cotacao_round_lote_view(request, bid_id, round_name):
 
     # Lógica GET: Apenas renderiza o formulário e a lista de rotas
     return render(request, 'cotacao_round_lote.html', context)
+
+
+
+
+
+##def cadastro_cliente_view(request):
+    # Se você for usar um formulário real, use Django Forms
+    # Por enquanto, apenas renderizamos o template
+    if request.method == 'POST':
+        # 🚨 Lógica de POST: AQUI VOCÊ SALVA OS DADOS DO CLIENTE
+        # Exemplo:
+        # nome = request.POST.get('nome')
+        # Cliente.objects.create(nome=nome, ...)
+        
+        # Após salvar, redireciona para a dashboard ou lista de clientes
+        return redirect('dashboard') 
+        
+    return render(request, 'cadastro_cliente.html', {})
+
+
+
+def cadastro_cliente_view(request):
+    if request.method == 'POST':
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            # Salva o novo cliente no banco de dados
+            form.save()
+            
+            # 🚨 Opcional: Adicionar uma mensagem de sucesso
+            # messages.success(request, 'Cliente cadastrado com sucesso!')
+            
+            # Redireciona para o dashboard ou para a lista de clientes
+            return redirect(reverse('dashboard')) # Substitua 'dashboard' pelo nome real da sua URL de dashboard
+    else:
+        # Cria uma instância de formulário vazia para o método GET
+        form = ClienteForm() 
+
+    context = {
+        'form': form, # 🚨 Passa o objeto form para o template
+    }
+    
+    # Renderiza o template, passando o formulário no contexto
+    return render(request, 'cadastro_cliente.html', context)

@@ -44,7 +44,8 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'), 
     path('configuracao/', views.configuracao_view, name='configuracao'),
     path('usuarios/', views.cadastro_usuarios_view, name='cadastro_usuarios'),
-    path('dashboard/', views.dashboard_view, name='dashboard'), 
+    path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('cadastro/cliente/', views.cadastro_cliente_view, name='cadastro_cliente'), 
 
     # Rotas de Cotação
     path('cotacao/spots/', views.cotacao_spots_view, name='cotacao_spots'),

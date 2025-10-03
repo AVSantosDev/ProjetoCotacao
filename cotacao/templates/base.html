@@ -35,6 +35,10 @@
                 <a href="{% url 'cotacao_bid_listagem' %}" class="list-group-item list-group-item-action py-3 {% if 'cotacao/bid' in request.path %}active{% endif %}">
                     <i class="bi bi-currency-dollar me-2"></i> Cotação BID
                 </a>
+
+                <a href="{% url 'cadastro_cliente' %}" class="list-group-item list-group-item-action py-3 {% if 'clientes' in request.path %}active{% endif %}">
+                    <i class="bi bi-person-plus-fill me-2"></i> Cadastro Clientes
+                </a>
                 
                 <a href="{% url 'configuracao' %}" class="list-group-item list-group-item-action py-3 {% if 'configuracao' in request.path %}active{% endif %}">
                     <i class="bi bi-gear-fill me-2"></i> Configuração
