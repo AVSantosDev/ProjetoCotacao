@@ -8,8 +8,9 @@ from django.db import transaction, IntegrityError
 from .models import CadCliente
 from django.db.models import Q
 from faker import Faker
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import random
-import time 
+
 
 
 # --- DEFINIÇÃO DO MOCK DE DADOS ---
@@ -205,20 +206,7 @@ def cotacao_round_lote_view(request, bid_id, round_name):
 
 
 
-##def cadastro_cliente_view(request):
-    # Se você for usar um formulário real, use Django Forms
-    # Por enquanto, apenas renderizamos o template
-    if request.method == 'POST':
-        # 🚨 Lógica de POST: AQUI VOCÊ SALVA OS DADOS DO CLIENTE
-        # Exemplo:
-        # nome = request.POST.get('nome')
-        # Cliente.objects.create(nome=nome, ...)
-        
-        # Após salvar, redireciona para a dashboard ou lista de clientes
-        return redirect('dashboard') 
-        
-    return render(request, 'cadastro_cliente.html', {})
-
+## criando metodo de cadastro de clientes 
 
 
 def cadastro_cliente_view(request):
@@ -249,7 +237,7 @@ def cadastro_cliente_view(request):
 
 
 
-
+## metodo para listar todos os clientes
 def lista_clientes_view(request):
     """
     Exibe uma lista de todos os clientes cadastrados e tem a opção de pesquisar por nome ou cnpj
@@ -257,37 +245,69 @@ def lista_clientes_view(request):
     nome_query = request.GET.get('nome', '').strip()
     cnpj_query = request.GET.get('cnpj', '').strip()
 
+
+    #parametros de paginação limita em padrão 20 cadastros por pagina
+    limite_str = request.GET.get('limite',20)
+    page = request.GET.get('page',1)##pagina 1 
+
+
+
     ## inicia a querySet
-    clientes = CadCliente.objects.all().order_by('razaoSocial')
-    
+    clientes_list = CadCliente.objects.all().order_by('razaoSocial')    
     ## cria objeto Q para as condições de filtro
     filter_conditions = Q()
 
     # A Lógica de filtro será combinada com AND (&)
     
-    ## 1. Filtro por nome
+    ##Filtro por nome
     if nome_query:
         # CORREÇÃO: Usar '__icontains' (I = Case-Insensitive)
         filter_conditions &= Q(razaoSocial__icontains=nome_query)
 
-    ## 2. Filtro por CNPJ
+    ##Filtro por CNPJ
     if cnpj_query:
         # Tratamento: remove caracteres especiais
         cnpj_limpo = cnpj_query.replace('.', '').replace('-', '').replace('/', '')
-        
-        # CORREÇÃO: Filtrar pelo campo 'cnpj' e usar '__icontains'
         filter_conditions &= Q(cnpj__icontains=cnpj_limpo)
         
     
-    # 3. Aplica o filtro se houver alguma condição
-    # Este bloco deve estar no final
+    #Aplica o filtro se houver alguma condição
+    
     if filter_conditions:
-        clientes = clientes.filter(filter_conditions)
+        clientes_list = clientes_list.filter(filter_conditions)
             
             
+
+    ##Implementação da páginação
+    try:
+        limite_int=int(limite_str)
+    except ValueError:
+        limite_int = 20
+        limite_str = '20'
+
+    if limite_int <= 0:
+        limite_int = 20
+        limite_str = '20'
+
+    paginator =Paginator(clientes_list, limite_int)
+
+    try:
+        clientes_list = paginator.page(page)
+    except PageNotAnInteger:
+        clientes_list = paginator.page(1)
+    except EmptyPage:
+        clientes_list = paginator.page(paginator.num.pages)
+
+
+    
+        
     context = {
-        'clientes': clientes,
+        'clientes': clientes_list,
         'titulo': 'Lista de Clientes Cadastrados',
+        'limites_atual': limite_str,
+        'nome_query':nome_query,
+        'cnpj_query':cnpj_query,
+
     }
 
     return render(request, 'lista_clientes.html', context)

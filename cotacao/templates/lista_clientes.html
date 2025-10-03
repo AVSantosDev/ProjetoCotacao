@@ -22,18 +22,18 @@
                         
                         <div class="col-md-5">
                             <input type="text" 
-                                   name="nome" 
-                                   class="form-control" 
-                                   placeholder="Pesquisar por Nome da Empresa..." 
-                                   value="{{ request.GET.nome }}">
+                                name="nome" 
+                                class="form-control" 
+                                placeholder="Pesquisar por Nome da Empresa..." 
+                                value="{{ request.GET.nome }}">
                         </div>
                         
                         <div class="col-md-3">
                             <input type="text" 
-                                   name="cnpj" 
-                                   class="form-control" 
-                                   placeholder="Pesquisar por CNPJ..." 
-                                   value="{{ request.GET.cnpj }}">
+                                name="cnpj" 
+                                class="form-control" 
+                                placeholder="Pesquisar por CNPJ..." 
+                                value="{{ request.GET.cnpj }}">
                         </div>
                         
                         <div class="col-md-4 d-flex">
@@ -87,6 +87,57 @@
                         </tbody>
                     </table>
                 </div>
+
+                {% if clientes.has_other_pages or clientes.paginator.count > 0 %}
+                <div class="mt-4 d-flex justify-content-between align-items-center">
+                    
+                    <form method="GET" class="d-flex align-items-center">
+                        <input type="hidden" name="nome" value="{{ nome_query }}">
+                        <input type="hidden" name="cnpj" value="{{ cnpj_query }}">
+                        
+                        <label for="limite-select" class="me-2 text-dark">Itens por página:</label>
+                        <select name="limite" id="limite-select" class="form-select form-select-sm" 
+                                onchange="this.form.submit()">
+                            <option value="20" {% if limite_atual == 20 %}selected{% endif %}>20</option>
+                            <option value="50" {% if limite_atual == 50 %}selected{% endif %}>50</option>
+                            <option value="100" {% if limite_atual == 100 %}selected{% endif %}>100</option>
+                            <!-- <option value="{{ clientes.paginator.count }}" 
+                                    {% if limite_atual > 100 %}selected{% endif %}>Todos</option> -->
+
+                            <!-- <option value="{{ clientes.paginator.count }}" 
+                {% if limite_atual != '20' and limite_atual != '50' and limite_atual != '100' %}selected{% endif %}>100</option>         -->
+                        </select>
+                    </form>
+                    
+                    <nav aria-label="Navegação de página">
+                        <ul class="pagination pagination-sm m-0">
+                            {% if clientes.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" 
+                                    href="?page={{ clientes.previous_page_number }}&limite={{ limite_atual }}&nome={{ nome_query }}&cnpj={{ cnpj_query }}">Anterior</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                            {% endif %}
+
+                            <li class="page-item disabled">
+                                <span class="page-link text-primary">
+                                    Página {{ clientes.number }} de {{ clientes.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if clientes.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" 
+                                    href="?page={{ clientes.next_page_number }}&limite={{ limite_atual }}&nome={{ nome_query }}&cnpj={{ cnpj_query }}">Próxima</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Próxima</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
                 {% elif request.GET.nome or request.GET.cnpj %}
                 <div class="alert alert-warning" role="alert">
                     <h4 class="alert-heading">Cadastro Não Encontrado!</h4>
