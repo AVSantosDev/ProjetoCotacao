@@ -45,7 +45,13 @@ urlpatterns = [
     path('configuracao/', views.configuracao_view, name='configuracao'),
     path('usuarios/', views.cadastro_usuarios_view, name='cadastro_usuarios'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
+
+
+    # Rotas Cadastro Clientes 
     path('cadastro/cliente/', views.cadastro_cliente_view, name='cadastro_cliente'), 
+    path('lista/clientes', views.lista_clientes_view, name='lista_clientes'),
+    path('gerar-clientes-teste/', views.gerar_clientes_teste_view, name='gerar_clientes_teste'),
+
 
     # Rotas de Cotação
     path('cotacao/spots/', views.cotacao_spots_view, name='cotacao_spots'),

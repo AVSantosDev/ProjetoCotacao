@@ -7,7 +7,7 @@ class ClienteForm(forms.ModelForm):
     class Meta:
         model = CadCliente
         # Defina quais campos do seu modelo você quer que apareçam no formulário.
-        # idCliente e as datas são automáticos, então não precisam ser listados.
+        
         fields = [
             'razaoSocial', 'cnpj', 'inscEstadual', 'inscMunicipal', 
             'logradouro', 'numeroLogradouro', 'bairro', 'cidade', 

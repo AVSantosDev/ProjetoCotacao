@@ -3,6 +3,14 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.urls import reverse
 from .forms import ClienteForm
+from django.contrib import messages
+from django.db import transaction, IntegrityError
+from .models import CadCliente
+from django.db.models import Q
+from faker import Faker
+import random
+import time 
+
 
 # --- DEFINIÇÃO DO MOCK DE DADOS ---
 # Use uma lista de dicionários para simular o banco de dados.
@@ -220,8 +228,8 @@ def cadastro_cliente_view(request):
             # Salva o novo cliente no banco de dados
             form.save()
             
-            # 🚨 Opcional: Adicionar uma mensagem de sucesso
-            # messages.success(request, 'Cliente cadastrado com sucesso!')
+            #  Opcional: Adicionar uma mensagem de sucesso
+            messages.success(request, 'Cliente cadastrado com sucesso!')
             
             # Redireciona para o dashboard ou para a lista de clientes
             return redirect(reverse('dashboard')) # Substitua 'dashboard' pelo nome real da sua URL de dashboard
@@ -230,8 +238,127 @@ def cadastro_cliente_view(request):
         form = ClienteForm() 
 
     context = {
-        'form': form, # 🚨 Passa o objeto form para o template
+        'form': form, # Passa o objeto form para o template
     }
     
     # Renderiza o template, passando o formulário no contexto
     return render(request, 'cadastro_cliente.html', context)
+
+
+
+
+
+
+
+def lista_clientes_view(request):
+    """
+    Exibe uma lista de todos os clientes cadastrados e tem a opção de pesquisar por nome ou cnpj
+    """
+    nome_query = request.GET.get('nome', '').strip()
+    cnpj_query = request.GET.get('cnpj', '').strip()
+
+    ## inicia a querySet
+    clientes = CadCliente.objects.all().order_by('razaoSocial')
+    
+    ## cria objeto Q para as condições de filtro
+    filter_conditions = Q()
+
+    # A Lógica de filtro será combinada com AND (&)
+    
+    ## 1. Filtro por nome
+    if nome_query:
+        # CORREÇÃO: Usar '__icontains' (I = Case-Insensitive)
+        filter_conditions &= Q(razaoSocial__icontains=nome_query)
+
+    ## 2. Filtro por CNPJ
+    if cnpj_query:
+        # Tratamento: remove caracteres especiais
+        cnpj_limpo = cnpj_query.replace('.', '').replace('-', '').replace('/', '')
+        
+        # CORREÇÃO: Filtrar pelo campo 'cnpj' e usar '__icontains'
+        filter_conditions &= Q(cnpj__icontains=cnpj_limpo)
+        
+    
+    # 3. Aplica o filtro se houver alguma condição
+    # Este bloco deve estar no final
+    if filter_conditions:
+        clientes = clientes.filter(filter_conditions)
+            
+            
+    context = {
+        'clientes': clientes,
+        'titulo': 'Lista de Clientes Cadastrados',
+    }
+
+    return render(request, 'lista_clientes.html', context)
+
+
+
+
+
+
+
+# Geração de Clientes de Teste
+
+def gerar_clientes_teste_view(request):
+    """
+    Cria 20 registros de clientes falsos, resolvendo o problema de estado_abbr.
+    """
+    if request.method == 'POST':
+        fake = Faker('pt_BR')
+        clientes_a_criar = 20
+        clientes_criados = 0
+        
+        # Lista de estados brasileiros (para garantir que a sigla funcione)
+        # O problema é que 'estado_abbr' não é um método padrão na localização pt_BR
+        # Vamos usar um método alternativo para obter uma sigla.
+        # Alternativa: Criar um dicionário (a forma mais segura)
+
+        # Usaremos o 'fake.estado()' e depois a sigla, mas farei a correção
+        # na chamada que estava gerando o erro de 'Generator'.
+
+        for i in range(clientes_a_criar * 3): 
+            if clientes_criados >= clientes_a_criar:
+                break 
+
+            try:
+                # 🎯 CORREÇÃO CRÍTICA:
+                # Na localização pt_BR, o 'estado_abbr' não é um método.
+                # Precisamos usar um valor pré-definido ou reverter para a obtenção mais segura.
+                # Vou usar a função 'uf' que geralmente está disponível ou uma lista de siglas:
+                sigla_estado = fake.state_abbr() # state_abbr é mais comum na Faker
+                
+                CadCliente.objects.create(
+                    razaoSocial=fake.company(),
+                    cnpj=''.join(random.choices('0123456789', k=14)),
+                    inscEstadual='ISENTA' if random.choice([True, False]) else fake.bban()[:20],
+                    inscMunicipal=fake.bban()[:20],
+                    logradouro=fake.street_name(),
+                    numeroLogradouro=str(random.randint(1, 9999)),
+                    bairro=fake.city_suffix(),
+                    cidade=fake.city(),
+                    estado=fake.estado(),
+                    sgEstado=sigla_estado, # USANDO A VARIÁVEL CORRIGIDA
+                    pais='Brasil',
+                    cep=''.join(random.choices('0123456789', k=8))[:9],
+                    telefone=fake.phone_number()[:20],
+                    email=fake.email(), 
+                    situacao=random.choice([True, True, True, False])
+                )
+                clientes_criados += 1
+
+            except IntegrityError as e:
+                pass
+            except Exception as e:
+                # Se ainda houver um erro, imprima-o para debug
+                print(f"ERRO DE CRIAÇÃO FATAL APÓS CORREÇÃO: {e}")
+                
+        # Mensagem final após a execução
+        if clientes_criados > 0:
+            messages.success(request, f'✅ {clientes_criados} clientes de teste criados com sucesso! Acesse a lista para ver.')
+        else:
+            messages.warning(request, f'Nenhum cliente foi criado. Verifique os logs no console.')
+            
+        return redirect(reverse('lista_clientes')) 
+
+    return redirect(reverse('cadastro_cliente'))

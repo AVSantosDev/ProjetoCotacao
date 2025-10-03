@@ -14,7 +14,7 @@ class CadCliente(models.Model):
     estado = models.CharField(max_length=255)
     sgEstado = models.CharField(max_length=2)
     pais = models.CharField(max_length=255)
-    cep = models.CharField(max_length=8)
+    cep = models.CharField(max_length=9)
     telefone = models.CharField(max_length=20)
     dataCadastro = models.DateField(auto_now_add=True)
     dataAtualizacao = models.DateField(auto_now=True)
