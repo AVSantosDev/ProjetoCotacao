@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 {% load static %}
 
@@ -8,73 +9,243 @@
     <h3 class="mb-4 text-dark">Iniciar Nova Cotação BID</h3>
 
     <div class="card shadow mb-4">
+        
         <div class="card-header py-3 bg-primary text-white">
             <h6 class="m-0 fw-bold">Passo 1: Seleção Inicial</h6>
         </div>
+        
+        {% if antt_vazio %}
+            <div class="card-body bg-light border-bottom border-danger p-3"> 
+                <form method="POST" action="{% url 'inicializar_tabelas_antt' %}" class="mb-0">
+                    {% csrf_token %}
+                    <div class="alert alert-danger mb-0 text-center" role="alert">
+                        <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i> Atenção!</h5>
+                        <p class="mb-2">A tabela de Frete Mínimo ANTT está vazia. É necessário inicializar os dados padrões.</p>
+                        
+                        <button type="submit" class="btn btn-danger btn-lg w-75 mt-2">
+                            <i class="bi bi-database-fill-add me-2"></i> Cadastrar Tabelas ANTT Padrão
+                        </button>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
         <div class="card-body">
             <form method="POST" action="{% url 'proxima_etapa_bid' %}">
                 {% csrf_token %}
-                <div class="row g-4">
+                
+
+    <div class="card-body">
+        <form method="POST" action="{% url 'proxima_etapa_bid' %}">
+            {% csrf_token %}
+            
+            <div class="row g-4">
+                
+                <div class="col-md-6">
+                    <label for="search_term" class="form-label fw-bold">Buscar Cliente (Nome ou CNPJ)</label>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="search_term" 
+                            placeholder="Digite para buscar e selecionar o cliente..."
+                            onkeyup="searchClients()">
+                        
+                        <a href="{%url 'cadastro_cliente'%}" class="btn btn-outline-success" type="button">
+                            <i class="bi bi-person-add"></i> Cadastrar
+                        </a>
+                    </div>
+
+                    <input type="hidden" name="cliente_id" id="cliente_id_hidden" required> 
                     
-                    <div class="col-md-6">
-                        <label for="cliente_select" class="form-label fw-bold">Cliente</label>
-                        <div class="input-group">
-                            <input type="text" list="clientes-list" class="form-control" id="cliente_select" placeholder="Buscar ou selecionar cliente existente..." required>
-                            <datalist id="clientes-list">
-                                <option value="Transportadora Alfa Ltda.">
-                                <option value="Indústria Beta S/A">
-                            </datalist>
-                            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#modalCadastroCliente">
-                                <i class="bi bi-person-add"></i> Cadastrar Novo
-                            </button>
-                        </div>
-                    </div>
+                    <p id="selected_client_display" class="fw-bold text-primary mb-0" style="min-height: 1.5rem;">
+                        Cliente não selecionado.
+                    </p>
 
-                    <div class="col-md-6">
-                        <label for="tabela_antt" class="form-label fw-bold">Tabela ANTT para Frete Mínimo</label>
-                        <input type="text" list="antt-list" class="form-control" id="tabela_antt" placeholder="Selecione a tabela..." required>
-                        <datalist id="antt-list">
-                            <option value="ANTT- A">Tabela A – Lotação - Spot -  Contratação pontual - Conjunto completo</option>
-                            <option value="ANTT- B">Tabela B – Agregados - Sem alta eficiencia, Cavalo/Motorista</option>
-                            <option value="ANTT- C">Tabela C – Lotação de Alto Desempenho - Spot -Conjunto completo</option>
-                            <option value="ANTT- D">Tabela D – Agregados de Alto Desempenho - Cavalo/Motorista</option>
-                        </datalist>
-                    </div>
-
-                    
-
-
-                    <div class="col-12 text-end pt-3">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-arrow-right-circle me-2"></i> Carregar e Prosseguir
-                        </button>
+                    <div id="client_results_container" class="mt-2" style="max-height: 300px; overflow-y: auto;">
                     </div>
                 </div>
-            </form>
-        </div>
-    </div>
-    
-    <div class="modal fade" id="modalCadastroCliente" tabindex="-1" aria-labelledby="modalCadastroClienteLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="modalCadastroClienteLabel">Cadastro Rápido de Cliente</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="nome_cliente" class="form-label">Nome/Razão Social</label>
-                        <input type="text" class="form-control" id="nome_cliente">
-                        <label for="nome_cliente" class="form-label">CNPJ</label>
-                        <input type="text" class="form-control" id="nome_cliente">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> Salvar Cliente</button>
-                </div>
+                
+                <div class="col-md-6">
+                <label for="tabela_antt" class="form-label fw-bold">Tabela ANTT para Frete Mínimo</label>
+
+                <input list="anttOptions" 
+                    class="form-control" 
+                    id="tabela_antt"
+                    name="tabela_antt"
+                    placeholder="Digite para buscar a tabela ANTT..."
+                    {% if antt_vazio %}disabled{% endif %}
+                    required>
+
+                <datalist id="anttOptions"></datalist>
+
+                <input type="hidden" name="tabela_antt_id" id="antt_id_hidden" required>
+
+                <p id="selected_antt_display" class="fw-bold text-primary mb-0" style="min-height: 1.5rem;">
+                    Tabela ANTT não selecionada.
+                </p>
             </div>
+
+                    <!-- Container para os resultados da busca ANTT -->
+                    <div id="antt_results_container" class="mt-2" style="max-height: 300px; overflow-y: auto;">
+                    </div>
+                </div>
+                <div class="col-12 text-end pt-3">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-right-circle me-2"></i> Carregar e Prosseguir
+                    </button>
+                </div>
+                
+            </div>
+        </form>
         </div>
-    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // URL para a busca de clientes (você precisará criar essa URL e a View)
+    const CLIENT_SEARCH_URL = "{% url 'api_search_clients' %}"; 
+    let searchTimeout;
+    let anttSearchTimeout;
+
+    // 1. Lógica de Busca de Clientes (Disparada ao digitar)
+    function searchClients() {
+        // Limpa o timeout anterior para evitar múltiplas chamadas rápidas
+        clearTimeout(searchTimeout);
+        
+        const term = document.getElementById('search_term').value.trim();
+        const resultsContainer = document.getElementById('client_results_container');
+        const hiddenIdInput = document.getElementById('cliente_id_hidden');
+        
+        // Limpa a seleção anterior ao começar a digitar
+        document.getElementById('selected_client_display').textContent = 'Cliente não selecionado.';
+        hiddenIdInput.value = '';
+        
+        if (term.length < 3) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+
+        // Aguarda 300ms antes de buscar (debounce)
+        searchTimeout = setTimeout(() => {
+            
+            // Exibe o loading
+            resultsContainer.innerHTML = `<p class="text-info text-center">
+                <i class="bi bi-arrow-clockwise spinner-border spinner-border-sm me-2"></i> Buscando...
+            </p>`;
+
+            // Faz a requisição AJAX para sua view Django
+            fetch(`${CLIENT_SEARCH_URL}?q=${term}`)
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    if (data.length === 0) {
+                        html = '<p class="text-danger text-center">Nenhum cliente encontrado.</p>';
+                    } else {
+                        // Constrói a tabela de resultados
+                        html = `
+                            <table class="table table-sm table-hover border">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th>Razão Social</th>
+                                        <th>CNPJ</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        data.forEach(client => {
+                            html += `
+                                <tr>
+                                    <td>${client.razaoSocial}</td>
+                                    <td>${client.cnpj}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-primary" 
+                                            onclick="selectClient(${client.idCliente}, '${client.razaoSocial}', '${client.cnpj}')">
+                                            Selecionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        html += `</tbody></table>`;
+                    }
+                    resultsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    resultsContainer.innerHTML = '<p class="text-danger text-center">Erro ao buscar clientes.</p>';
+                    console.error('Fetch error:', error);
+                });
+
+        }, 300);
+    }
+    
+    // 2. Lógica de Seleção (Chamada ao clicar em "Selecionar")
+    function selectClient(id, razaoSocial, cnpj) {
+        const hiddenIdInput = document.getElementById('cliente_id_hidden');
+        
+        // 1. Preenche o campo hidden com o ID (para submissão do form)
+        hiddenIdInput.value = id;
+        
+        // 2. Preenche o campo de exibição
+        document.getElementById('selected_client_display').textContent = `Cliente Selecionado: ${razaoSocial} | CNPJ: ${cnpj}`;
+        
+        // 3. Limpa a área de busca/resultados
+        document.getElementById('search_term').value = razaoSocial; // Opcional: coloca o nome no campo de busca
+        document.getElementById('client_results_container').innerHTML = '';
+        
+        // 4. Se o seu form tiver validação, você pode forçá-lo a atualizar o estado 'required' aqui, se necessário.
+    }
+
+
+const ANTT_SEARCH_URL = "{% url 'api_search_antt' %}";
+const datalist = document.getElementById('anttOptions');
+const searchInput = document.getElementById('tabela_antt');
+const hiddenId = document.getElementById('antt_id_hidden');
+const display = document.getElementById('selected_antt_display');
+
+searchInput.addEventListener('input', () => {
+    const term = searchInput.value.trim();
+    if (term.length < 2) return; // evita chamadas desnecessárias
+
+    fetch(`${ANTT_SEARCH_URL}?q=${term}`)
+        .then(response => response.json())
+        .then(data => {
+            datalist.innerHTML = '';
+            data.forEach(tabela => {
+                const option = document.createElement('option');
+                option.value = tabela.Descricao;
+                option.setAttribute('data-id', tabela.id);
+                datalist.appendChild(option);
+            });
+        });
+});
+
+searchInput.addEventListener('change', () => {
+    const selectedOption = Array.from(datalist.options)
+        .find(opt => opt.value === searchInput.value);
+    if (selectedOption) {
+        hiddenId.value = selectedOption.getAttribute('data-id');
+        display.textContent = `Tabela ANTT Selecionada: ${selectedOption.value}`;
+    } else {
+        hiddenId.value = '';
+        display.textContent = 'Tabela ANTT não selecionada.';
+    }
+});
+</script>
+
+
 
 {% endblock %}
+
+{% comment %}             
+                <div class="card-body bg-light border-bottom border-danger p-3"> <form method="POST" action="{% url 'inicializar_tabelas_antt' %}" class="mb-0">
+                        {% csrf_token %}
+                        <div class="alert alert-danger mb-0 text-center" role="alert">
+                            <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i> Atenção!</h5>
+                            <p class="mb-2">A tabela de Frete Mínimo ANTT está vazia. É necessário inicializar os dados padrões.</p>
+                            
+                            <button type="submit" class="btn btn-danger btn-lg w-75 mt-2">
+                                <i class="bi bi-database-fill-add me-2"></i> Cadastrar Tabelas ANTT Padrão
+                            </button>
+                        </div>
+                    </form>
+                </div> {% endcomment %}

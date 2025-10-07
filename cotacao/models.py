@@ -20,21 +20,11 @@ class CadCliente(models.Model):
     dataAtualizacao = models.DateField(auto_now=True)
     email = models.EmailField(unique=True)
     situacao = models.BooleanField(default=True)
+    
 
     def __str__(self):
         return f"{self.razaoSocial} ({self.cnpj})"
     
-
-class Rota(models.Model):
-    idRota = models.AutoField(primary_key=True)
-    codRota = models.IntegerField(unique=True)
-    origem = models.CharField(max_length=255)
-    destino = models.CharField(max_length=255)
-    km = models.IntegerField()
-
-    def __str__(self):
-        return f"Rota {self.codRota}: {self.origem} → {self.destino}"
-
 
 
 class CadVeic(models.Model):
@@ -47,12 +37,25 @@ class CadVeic(models.Model):
         return f"{self.tpVeiculo} - {self.eixos} eixos"
 
 
+
+class tabelaANTT(models.Model):
+
+    idTabelaANTT = models.AutoField(primary_key=True)
+    codTabelaANTT = models.CharField(max_length=7, unique=True, null=True, blank=True)
+    Descricao = models.CharField(max_length=255, unique= True, null=True, blank=True)
+
+    def __str__(self):
+        return super().__str__()
+
+
+
 class CotacaoBid(models.Model):
     idCotacaoBid = models.AutoField(primary_key=True)
     nCotacaoBid = models.CharField(max_length=50, unique=True, verbose_name="Número da Cotação")
-    cliente = models.ForeignKey(CadCliente, on_delete=models.CASCADE)
     dataCriacao = models.DateField(auto_now_add=True)
-    rounds = models.IntegerField()
+    rounds = models.IntegerField(null=True)
+    tabelaANTT = models.ForeignKey(tabelaANTT, null=True, blank=True, on_delete=models.CASCADE)
+    idCliente = models.ForeignKey(CadCliente, on_delete=models.CASCADE )
 
     def __str__(self):
         return f"Cotação {self.nCotacaoBid} - {self.cliente.razaoSocial}"
@@ -61,24 +64,25 @@ class CotacaoBid(models.Model):
 
 
 class DetalheCotacaoBid(models.Model):
-    idDetCotBid = models.AutoField(primary_key=True)
-    cotacao = models.ForeignKey(CotacaoBid, on_delete=models.CASCADE, related_name="detalhes")
-    codRota = models.ForeignKey(Rota, on_delete=models.CASCADE)
+    idDetCotacao = models.AutoField(primary_key=True)
+    codRota = models.CharField(max_length=255)
     cliente = models.ForeignKey(CadCliente, on_delete=models.CASCADE)
-    origem = models.CharField(max_length=255)
-    destino = models.CharField(max_length=255)
+    origem = models.CharField(max_length=255, null=True, blank=True)
+    destino = models.CharField(max_length=255, null=True, blank=True)
     tpVeiculoQualp = models.CharField(max_length=100)
     cadVeiculo = models.ForeignKey(CadVeic, on_delete=models.CASCADE)
-    eixos = models.IntegerField()
-    km = models.IntegerField()
-    pedagio = models.DecimalField(max_digits=10, decimal_places=2)
-    freteMinimo = models.DecimalField(max_digits=12, decimal_places=2)
+    eixos = models.IntegerField(null=True, blank=True)
+    km = models.IntegerField (null=True, blank=True)
+    pedagio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    freteMinimo = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     round1 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     round2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     round3 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     round4 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     round5 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
+    ##bid_id = models.ForeignKey()
+    cotacao = models.ForeignKey(CotacaoBid, on_delete=models.CASCADE, related_name="detalhes")
     def __str__(self):
         return f"Detalhe Cotação {self.idDetCotBid} - {self.cliente.razaoSocial}"
 

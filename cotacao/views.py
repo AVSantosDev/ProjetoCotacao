@@ -1,49 +1,51 @@
 # cotacao/views.py
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
 from django.urls import reverse
+from django.http import HttpResponse, JsonResponse
 from .forms import ClienteForm
 from django.contrib import messages
 from django.db import transaction, IntegrityError
-from .models import CadCliente
+from .models import CadCliente, tabelaANTT, CotacaoBid
 from django.db.models import Q
 from faker import Faker
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import random
+from django import forms
+from decimal import Decimal
 
 
 
-# --- DEFINIÇÃO DO MOCK DE DADOS ---
-# Use uma lista de dicionários para simular o banco de dados.
-# O MOCK precisa ter um ID único para funcionar corretamente.
-rotas_mock = [
-    # MOCK de dados para rotas na listagem de detalhes do BID
-    {'id': 1, 'bid_id': 1001, 'cod': 'BID-1001-A', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'São Paulo - SP', 'destino': 'Rio de Janeiro - RJ', 'veiculo': 'Caminhão', 'eixos': 5, 'R1': 'R$ 3.800,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 900},
-    {'id': 2, 'bid_id': 1001, 'cod': 'BID-1001-B', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Florianópolis - SC', 'veiculo': 'Carreta LS', 'eixos': 6, 'R1': 'R$ 1.950,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
-    {'id': 3, 'bid_id': 1001, 'cod': 'BID-1001-C', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Porto Alegre - RS', 'veiculo': 'VUC', 'eixos': 2, 'R1': 'R$ 2.100', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 700},
-    # Adicionando um BID diferente para teste
-    {'id': 4, 'bid_id': 1002, 'cod': 'BID-1002-D', 'grupo': 'G-100', 'origem': 'Recife - PE', 'destino': 'Natal - RN', 'veiculo': 'Truck', 'eixos': 3, 'R1': '-', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
-]
-# ---------------------------------------------------------
+# # --- DEFINIÇÃO DO MOCK DE DADOS ---
+# # Use uma lista de dicionários para simular o banco de dados.
+# # O MOCK precisa ter um ID único para funcionar corretamente.
+# rotas_mock = [
+#     # MOCK de dados para rotas na listagem de detalhes do BID
+#     {'id': 1, 'bid_id': 1001, 'cod': 'BID-1001-A', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'São Paulo - SP', 'destino': 'Rio de Janeiro - RJ', 'veiculo': 'Caminhão', 'eixos': 5, 'R1': 'R$ 3.800,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 900},
+#     {'id': 2, 'bid_id': 1001, 'cod': 'BID-1001-B', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Florianópolis - SC', 'veiculo': 'Carreta LS', 'eixos': 6, 'R1': 'R$ 1.950,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
+#     {'id': 3, 'bid_id': 1001, 'cod': 'BID-1001-C', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Porto Alegre - RS', 'veiculo': 'VUC', 'eixos': 2, 'R1': 'R$ 2.100', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 700},
+#     # Adicionando um BID diferente para teste
+#     {'id': 4, 'bid_id': 1002, 'cod': 'BID-1002-D', 'grupo': 'G-100', 'origem': 'Recife - PE', 'destino': 'Natal - RN', 'veiculo': 'Truck', 'eixos': 3, 'R1': '-', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
+# ]
+# # ---------------------------------------------------------
 
-# --- FUNÇÃO AUXILIAR MOCK PARA BUSCAR ROTAS ---
-def get_rotas_for_bid(bid_id):
-    """ Filtra rotas_mock pelo bid_id. """
-    return [r for r in rotas_mock if r['bid_id'] == bid_id]
+# # --- FUNÇÃO AUXILIAR MOCK PARA BUSCAR ROTAS ---
+# def get_rotas_for_bid(bid_id):
+#     """ Filtra rotas_mock pelo bid_id. """
+#     return [r for r in rotas_mock if r['bid_id'] == bid_id]
 
-# --- FUNÇÃO AUXILIAR MOCK PARA OBTER DADOS DE ROTA ---
-def get_rota_by_id(rota_id):
-    """ Busca uma rota pelo ID. """
-    for rota in rotas_mock:
-        if rota['id'] == rota_id:
-            return rota
-    return None
+# # --- FUNÇÃO AUXILIAR MOCK PARA OBTER DADOS DE ROTA ---
+# def get_rota_by_id(rota_id):
+#     """ Busca uma rota pelo ID. """
+#     for rota in rotas_mock:
+#         if rota['id'] == rota_id:
+#             return rota
+#     return None
 
-# --- FUNÇÃO AUXILIAR PARA OBTER PREÇO DO ROUND ---
-def get_round_price(rota, round_name):
-    """ Simula o método get_round_price do template cotacao_round_lote.html. """
-    return rota.get(round_name, '-')
-# -------------------------------------------------
+# # --- FUNÇÃO AUXILIAR PARA OBTER PREÇO DO ROUND ---
+# def get_round_price(rota, round_name):
+#     """ Simula o método get_round_price do template cotacao_round_lote.html. """
+#     return rota.get(round_name, '-')
+# # -------------------------------------------------
 
 
 # VIEWS GERAIS
@@ -62,147 +64,43 @@ def login_view(request):
 
     return render(request, 'login.html', {})
 
+#_____________________________________#___#__#_#_#_#_#_
+
 def register_view(request):
     return render(request, 'register.html', {})
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 
 def logout_view(request):
     return redirect('login') 
 
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+
+
 def configuracao_view(request):
     return render(request, 'configuracao.html', {})
 
+
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+
 def cadastro_usuarios_view(request):
     return render(request, 'cadastro_usuarios.html', {})
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 
 # DASHBOARD
 def dashboard_view(request):
     return render(request, 'dashboard.html', {})
 
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+
 # COTAÇÃO SPOT (Placeholder)
 def cotacao_spots_view(request):
     return render(request, 'cotacao_spots.html', {})
 
-# COTAÇÃO BID (Fluxo completo)
-def cotacao_bid_listagem_view(request):
-    return render(request, 'cotacao_bid_listagem.html', {})
-
-def cotacao_bid_nova_view(request):
-    return render(request, 'cotacao_bid_nova.html', {})
-
-def proxima_etapa_bid_view(request):
-    """ Processa o formulário inicial e redireciona para a tela de detalhe. """
-    if request.method == 'POST':
-        # MOCK: Assumindo que o novo BID ID é 1002 para o exemplo
-        novo_bid_id = 1002 
-        # 🚨 CORREÇÃO: Removido 'cotacao:'
-        return redirect('cotacao_bid_detalhe', bid_id=novo_bid_id)
-    # 🚨 CORREÇÃO: Removido 'cotacao:'
-    return redirect('cotacao_bid_nova')
-
-
-def cotacao_bid_detalhe_view(request, bid_id):
-    """ Renderiza a tela de detalhes do BID (tabela de rotas, cálculos, rounds). """
-    rotas_filtradas = get_rotas_for_bid(bid_id)
-    
-    context = {
-        'bid_id': bid_id,
-        'rotas': rotas_filtradas,
-    }
-    return render(request, 'cotacao_bid_detalhe.html', context)
-
-
-def cotacao_bid_editar_round_view(request, bid_id, rota_id):
-    """ Simula o processamento do formulário de edição de round e redireciona de volta. """
-    if request.method == 'POST':
-        rota = get_rota_by_id(rota_id)
-
-        if not rota:
-            # 🚨 CORREÇÃO: Removido 'cotacao:'
-            return redirect('cotacao_bid_detalhe', bid_id=bid_id) 
-            
-        round_name = request.POST.get('round_name')
-        km_value = request.POST.get('km_value')
-        percentage_increase = request.POST.get('percentage_increase')
-
-        # Lógica MOCK para atualizar o preço na rota
-        novo_preco = float(rota.get('km', 0) or 0) * (float(km_value) if km_value else 0)
-        novo_preco *= (1 + (float(percentage_increase) if percentage_increase else 0) / 100)
-        
-        # Simula a atualização do campo R1, R2, etc. na lista MOCK
-        rota[round_name] = f"R$ {novo_preco:,.2f} (Manual)"
-        
-        print(f"Rota {rota_id} | Round {round_name} atualizado. Novo Preço: {rota[round_name]}")
-        
-        # 🚨 CORREÇÃO: Removido 'cotacao:'
-        return redirect('cotacao_bid_detalhe', bid_id=bid_id)
-
-    # Se acessar com GET, redireciona para o detalhe
-    # 🚨 CORREÇÃO: Removido 'cotacao:'
-    return redirect('cotacao_bid_detalhe', bid_id=bid_id)
-
-
-# =========================================================================
-# NOVA VIEW DE COTAÇÃO EM LOTE
-# =========================================================================
-def cotacao_round_lote_view(request, bid_id, round_name):
-    """ 
-    Gerencia a aplicação de uma regra de cálculo em lote para um Round específico
-    em todas as rotas do BID.
-    """
-    
-    # 1. Busca as rotas filtradas pelo BID
-    rotas_filtradas = get_rotas_for_bid(bid_id)
-    
-    # Adiciona a função auxiliar ao contexto para ser usada no template
-    for rota in rotas_filtradas:
-        rota['get_round_price'] = get_round_price(rota, round_name) 
-    
-    # 🚨 PONTO CHAVE: Defina o contexto ANTES DE QUALQUER REDIRECIONAMENTO ou renderização.
-    # O 'bid_id' é crucial para os links de retorno no template.
-    context = {
-        'bid_id': bid_id,  # <--- Garante que o bid_id está no contexto
-        'round_name': round_name,
-        'rotas': rotas_filtradas,
-        'total_rotas': len(rotas_filtradas)
-    }
-
-    if request.method == 'POST':
-        # --- APLICAÇÃO EM LOTE ---
-        km_value_lote = request.POST.get('km_value_lote')
-        percentage_lote = request.POST.get('percentage_increase_lote')
-        
-        selected_route_ids_str = request.POST.get('selected_route_ids')
-        
-        # ... (restante da lógica do POST, incluindo a conversão de selected_ids) ...
-        
-        if not selected_route_ids_str:
-            print("ERRO: Nenhuma rota selecionada para aplicação em lote.")
-            # Se não houver rotas selecionadas, re-renderiza a página (ou redireciona).
-            # Se você re-renderizar, a variável 'context' já está pronta.
-            # Se você redirecionar, o problema não acontece aqui. 
-            # Vou manter o redirecionamento para o detalhe, que é mais limpo.
-            return redirect('cotacao_bid_detalhe', bid_id=bid_id)
-
-        selected_ids = [int(id_str) for id_str in selected_route_ids_str.split(',') if id_str]
-        
-        if not km_value_lote and not percentage_lote:
-            print("ERRO: Nenhum valor de KM ou percentual informado para o lote.")
-            # Se houver erro de validação, re-renderiza a página com o contexto atual
-            return render(request, 'cotacao_round_lote.html', context)
-        else:
-            # 2. Loop para aplicar a cotação APENAS nas rotas selecionadas
-            for rota in rotas_filtradas:
-                if rota['id'] in selected_ids:
-                    # ... (Lógica de cálculo) ...
-                    pass # Mantido em 'pass' para brevidade
-            
-            # 3. Redireciona de volta para a tela de detalhes após a aplicação em lote
-            return redirect('cotacao_bid_detalhe', bid_id=bid_id)
-
-    # Lógica GET: Apenas renderiza o formulário e a lista de rotas
-    return render(request, 'cotacao_round_lote.html', context)
-
-
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 
 
 
@@ -231,7 +129,7 @@ def cadastro_cliente_view(request):
     
     # Renderiza o template, passando o formulário no contexto
     return render(request, 'cadastro_cliente.html', context)
-
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 
 ## metodo para listar todos os clientes
 def lista_clientes_view(request):
@@ -307,7 +205,7 @@ def lista_clientes_view(request):
     }
 
     return render(request, 'lista_clientes.html', context)
-
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 
 def editar_cliente_view(request, cliente_id):
     cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
@@ -332,10 +230,7 @@ def editar_cliente_view(request, cliente_id):
     return render(request,'editar_cliente.html',context)
 
 
-
-
-
-
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
 # Geração de Clientes de Teste
 
 def gerar_clientes_teste_view(request):
@@ -400,3 +295,278 @@ def gerar_clientes_teste_view(request):
         return redirect(reverse('lista_clientes')) 
 
     return redirect(reverse('cadastro_cliente'))
+
+
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________##_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________##_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________##_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#__________________#
+
+
+
+"""Cadastrar uma nova tabela ANTT"""
+
+ANTT_DATA = {
+        "Tabela A" : "Tabela A – Lotação - Spot -  Contratação pontual - Conjunto completo",
+        "Tabela B" : "Tabela B – Agregados - Sem alta eficiencia, Cavalo/Motorista",
+        "Tabela C" : "Tabela C – Lotação de Alto Desempenho - Spot -Conjunto completo",
+        "Tabela D": "Tabela D – Agregados de Alto Desempenho - Cavalo/Motorista",
+}
+
+
+def inicializar_tabelas_antt_view(request):
+
+    if request.method == 'POST':
+        try:
+            novas_tabelas=[]
+
+            for cod, descricao in ANTT_DATA.items():
+                if not tabelaANTT.objects.filter(codTabelaANTT=cod).exists():
+                    novas_tabelas.append(
+                        tabelaANTT(
+                            codTabelaANTT=cod,
+                            Descricao=descricao
+                        )
+                    )
+
+            if novas_tabelas:
+                tabelaANTT.objects.bulk_create(novas_tabelas)
+                print(f"SUCESSO: {len(novas_tabelas)} Tabelas ANTT cadastradas.")
+            
+            else:
+                print("INFORMAÇÃO: As tabelas ANTT já estavam cadastradas.")
+                pass
+
+        except IntegrityError as e:
+            print(f"Erro de integridade de inicializar ANTT: {e}")
+        except Exception as e:
+            print(f"Erro desconhecido ao inicializar ANTT: {e}")
+
+    return redirect(reverse('cotacao_bid_nova'))
+
+
+# def api_search_antt_view(request):
+#     term = request.GET.ger('q','').strip().lower()
+#     if not term:
+#         return JsonResponse([], safe=False)
+    
+#     tabelas = tabelaANTT.objects.filter(Descricao__icontains=term).values('idtabelaANTT','Descricao')
+#     return JsonResponse(list(tabelas), safe=False)
+
+
+def api_search_antt_view(request):
+    """Retorna as tabelas ANTT para popular o datalist."""
+    q = request.GET.get('q', '').strip()
+    if q:
+        tabelas = tabelaANTT.objects.filter(Descricao__icontains=q)
+    else:
+        tabelas = tabelaANTT.objects.all()
+
+    data = [
+        {"id": t.idTabelaANTT, "Descricao": t.Descricao}
+        for t in tabelas
+    ]
+    return JsonResponse(data, safe=False)
+
+
+# COTAÇÃO BID (Fluxo completo)
+
+
+#metodos novos
+
+# def cotacao_bid_nova_view(request):
+#     clientes =CadCliente.objects.all().order_by('razaoSocial')
+#     tabela_antt = tabelaANTT.objects.all().order_by('Descricao')
+
+#     context ={
+#         'clientes':clientes,
+#         'tabela_antt': tabela_antt,
+#     }
+
+#     return render(request, 'cotacao/cotacao_bid_nova.html', context)
+    
+
+
+def api_search_clients_view(request):
+    search_term = request.GET.get('q', '')
+    
+    if len(search_term) < 3:
+        # Retorna lista vazia se o termo for muito curto
+        return JsonResponse([], safe=False) 
+        
+    # Busca clientes onde a Razão Social OU o CNPJ contenham o termo (case-insensitive)
+    clients = CadCliente.objects.filter(
+        Q(razaoSocial__icontains=search_term) | 
+        Q(cnpj__icontains=search_term)
+    ).values('idCliente', 'razaoSocial', 'cnpj')[:10] # Limita a 10 resultados
+
+    # Converte o QuerySet para lista de dicionários e retorna como JSON
+    return JsonResponse(list(clients), safe=False)
+
+
+def proxima_etapa_bid_view(request):    
+    if request.method =='POST':
+        cliente_id = request.POST.get('cliente_id')
+        tabela_antt_id = request.POST.get('tabela_antt_id')
+
+
+        if not cliente_id or not tabela_antt_id:
+            return redirect(reverse('cotacao_bid_nova'))
+        
+        try:
+            cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
+            tabela_antt = get_object_or_404(tabelaANTT, idTabelaANTT=tabela_antt_id)
+
+            novo_bid = CotacaoBid.objects.create(
+                idCliente = cliente,
+                tabelaANTT=tabela_antt,
+                rounds = 5,
+                nCotacaoBid = 'TEMP'
+            )
+            #Gerando o nCotacaoBID "BID" + ID CLIENTE + IDCOTACAOBID
+            numero_final = f"BID{cliente.idCliente:04d}{novo_bid.idCotacaoBid:04d}"
+            novo_bid.nCotacaoBid = numero_final#ATUALIZA E SALVA O nCotacaoBID
+            novo_bid.save() 
+            return redirect(reverse('cotacao_bid_detalhe', kwargs={'bid_id': novo_bid.idCotacaoBid}))
+
+        except Exception as e:
+            print(f"Erro ao criar o BID: {e}")
+            return redirect(reverse('cotacao_bid_nova'))
+
+
+
+    return redirect('cotacao_bid_nova')
+
+
+
+def cotacao_bid_detalhe_view(request, bid_id):
+    """ Renderiza a tela de detalhes do BID sem buscar rotas. """
+    # Busca o BID
+    bid = get_object_or_404(CotacaoBid, idCotacaoBid=bid_id)
+
+    context = {
+        'bid_id': bid.idCotacaoBid,
+        'cliente': bid.idCliente,
+        'antt': bid.tabelaANTT,
+        'rotas': [],  # Nenhuma rota por enquanto
+    }
+    return render(request, 'cotacao_bid_detalhe.html', context)
+
+def cotacao_bid_editar_round_view(request, bid_id, rota_id):
+    """ Apenas redireciona de volta para o detalhe do BID. """
+    return redirect('cotacao_bid_detalhe', bid_id=bid_id)
+
+
+
+
+def cotacao_bid_listagem_view(request):
+    return render(request, 'cotacao_bid_listagem.html', {})
+
+def cotacao_bid_nova_view(request):
+    return render(request, 'cotacao_bid_nova.html', {})
+
+
+
+# def cotacao_bid_detalhe_view(request, bid_id):
+#     """ Renderiza a tela de detalhes do BID (tabela de rotas, cálculos, rounds). """
+#     rotas_filtradas = get_rotas_for_bid(bid_id)
+    
+#     context = {
+#         'bid_id': bid_id,
+#         'rotas': rotas_filtradas,
+#     }
+#     return render(request, 'cotacao_bid_detalhe.html', context)
+
+
+# def cotacao_bid_editar_round_view(request, bid_id, rota_id):
+#     """ Simula o processamento do formulário de edição de round e redireciona de volta. """
+#     if request.method == 'POST':
+#         rota = get_rota_by_id(rota_id)
+
+#         if not rota:
+#             # 🚨 CORREÇÃO: Removido 'cotacao:'
+#             return redirect('cotacao_bid_detalhe', bid_id=bid_id) 
+            
+#         round_name = request.POST.get('round_name')
+#         km_value = request.POST.get('km_value')
+#         percentage_increase = request.POST.get('percentage_increase')
+
+#         # Lógica MOCK para atualizar o preço na rota
+#         novo_preco = float(rota.get('km', 0) or 0) * (float(km_value) if km_value else 0)
+#         novo_preco *= (1 + (float(percentage_increase) if percentage_increase else 0) / 100)
+        
+#         # Simula a atualização do campo R1, R2, etc. na lista MOCK
+#         rota[round_name] = f"R$ {novo_preco:,.2f} (Manual)"
+        
+#         print(f"Rota {rota_id} | Round {round_name} atualizado. Novo Preço: {rota[round_name]}")
+        
+#         # 🚨 CORREÇÃO: Removido 'cotacao:'
+#         return redirect('cotacao_bid_detalhe', bid_id=bid_id)
+
+#     # Se acessar com GET, redireciona para o detalhe
+#     # 🚨 CORREÇÃO: Removido 'cotacao:'
+#     return redirect('cotacao_bid_detalhe', bid_id=bid_id)
+
+
+# =========================================================================
+# NOVA VIEW DE COTAÇÃO EM LOTE
+# =========================================================================
+def cotacao_round_lote_view(request, bid_id, round_name):
+    """ 
+    Gerencia a aplicação de uma regra de cálculo em lote para um Round específico
+    em todas as rotas do BID.
+    """
+    
+    # 1. Busca as rotas filtradas pelo BID
+    rotas_filtradas = get_rotas_for_bid(bid_id)
+    
+    # Adiciona a função auxiliar ao contexto para ser usada no template
+    for rota in rotas_filtradas:
+        rota['get_round_price'] = get_round_price(rota, round_name) 
+    
+    # 🚨 PONTO CHAVE: Defina o contexto ANTES DE QUALQUER REDIRECIONAMENTO ou renderização.
+    # O 'bid_id' é crucial para os links de retorno no template.
+    context = {
+        'bid_id': bid_id,  # <--- Garante que o bid_id está no contexto
+        'round_name': round_name,
+        'rotas': rotas_filtradas,
+        'total_rotas': len(rotas_filtradas)
+    }
+
+    if request.method == 'POST':
+        # --- APLICAÇÃO EM LOTE ---
+        km_value_lote = request.POST.get('km_value_lote')
+        percentage_lote = request.POST.get('percentage_increase_lote')
+        
+        selected_route_ids_str = request.POST.get('selected_route_ids')
+        
+        # ... (restante da lógica do POST, incluindo a conversão de selected_ids) ...
+        
+        if not selected_route_ids_str:
+            print("ERRO: Nenhuma rota selecionada para aplicação em lote.")
+            # Se não houver rotas selecionadas, re-renderiza a página (ou redireciona).
+            # Se você re-renderizar, a variável 'context' já está pronta.
+            # Se você redirecionar, o problema não acontece aqui. 
+            # Vou manter o redirecionamento para o detalhe, que é mais limpo.
+            return redirect('cotacao_bid_detalhe', bid_id=bid_id)
+
+        selected_ids = [int(id_str) for id_str in selected_route_ids_str.split(',') if id_str]
+        
+        if not km_value_lote and not percentage_lote:
+            print("ERRO: Nenhum valor de KM ou percentual informado para o lote.")
+            # Se houver erro de validação, re-renderiza a página com o contexto atual
+            return render(request, 'cotacao_round_lote.html', context)
+        else:
+            # 2. Loop para aplicar a cotação APENAS nas rotas selecionadas
+            for rota in rotas_filtradas:
+                if rota['id'] in selected_ids:
+                    # ... (Lógica de cálculo) ...
+                    pass # Mantido em 'pass' para brevidade
+            
+            # 3. Redireciona de volta para a tela de detalhes após a aplicação em lote
+            return redirect('cotacao_bid_detalhe', bid_id=bid_id)
+
+    # Lógica GET: Apenas renderiza o formulário e a lista de rotas
+    return render(request, 'cotacao_round_lote.html', context)
+
+
+
