@@ -49,6 +49,12 @@ import traceback
 
 
 # VIEWS GERAIS
+
+def em_desenvolvimento_view(request):
+    ###Página genérica para funcionalidades em desenvolvimento.
+    return render(request, 'em_desenvolvimento.html')
+
+
 def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')

@@ -9,11 +9,11 @@ from . import views
 
 urlpatterns = [
     # Rotas de Layout/Gerais
-    path('register/', views.register_view, name='register'),
-    path('logout/', views.logout_view, name='logout'), 
-    path('configuracao/', views.configuracao_view, name='configuracao'),
-    path('usuarios/', views.cadastro_usuarios_view, name='cadastro_usuarios'),
+    path('register/', views.em_desenvolvimento_view, name='register'),
+    path('configuracao/', views.em_desenvolvimento_view, name='configuracao'),
+    path('usuarios/', views.em_desenvolvimento_view, name='cadastro_usuarios'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('logout/', views.logout_view, name='logout'), 
 
 
     # Rotas Cadastro Clientes 
@@ -24,7 +24,7 @@ urlpatterns = [
 
 
     # Rotas de Cotação
-    path('cotacao/spots/', views.cotacao_spots_view, name='cotacao_spots'),
+    path('cotacao/spots/', views.em_desenvolvimento_view, name='cotacao_spots'),
     
     # Rotas de Cotação BID
     path('cotacao/bid/', views.cotacao_bid_listagem_view, name='cotacao_bid_listagem'),

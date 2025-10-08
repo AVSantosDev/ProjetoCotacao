@@ -20,7 +20,23 @@
         
         <div id="sidebar-wrapper" class="border-end">
             <div class="sidebar-heading">
-                <i class="bi bi-speedometer2 me-2"></i> **Logo / Sistema**
+                <a href="{% url 'dashboard' %}" class="d-flex align-items-center text-decoration-none mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 64 64" class="me-2">
+                        <!-- Caminhão -->
+                        <rect x="2" y="20" width="40" height="20" fill="#4e73df" rx="2"/>
+                        <rect x="42" y="28" width="16" height="12" fill="#1cc88a" rx="2"/>
+                        <circle cx="12" cy="44" r="4" fill="#000"/>
+                        <circle cx="38" cy="44" r="4" fill="#000"/>
+                        <circle cx="50" cy="44" r="4" fill="#000"/>
+                        <!-- Gráfico de barras -->
+                        <rect x="8" y="14" width="4" height="6" fill="#ffffff"/>
+                        <rect x="14" y="10" width="4" height="10" fill="#ffffff"/>
+                        <rect x="20" y="6" width="4" height="14" fill="#ffffff"/>
+                    </svg>
+
+                    
+                    <span class="fw-bold text-white fs-5">Sistema de Cotação</span>
+                </a>
             </div>
             <div class="list-group list-group-flush">
                 
@@ -51,7 +67,7 @@
                 <hr class="mx-3 my-2 border-secondary">
 
                 <a href="{% url 'login' %}" class="list-group-item list-group-item-action py-3">
-                    <i class="bi bi-box-arrow-in-right me-2"></i> Login Page
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Logout Page
                 </a>
                 <a href="{% url 'register' %}" class="list-group-item list-group-item-action py-3">
                     <i class="bi bi-person-circle me-2"></i> Register Page

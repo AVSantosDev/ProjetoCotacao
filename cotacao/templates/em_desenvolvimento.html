@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Página em Desenvolvimento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="height: 70vh;">
+    <div class="text-center">
+        <i class="bi bi-tools" style="font-size: 4rem; color: #ffc107;"></i>
+        <h1 class="mt-3">Em Desenvolvimento</h1>
+        <p class="text-muted">Esta funcionalidade ainda está em construção. Volte mais tarde!</p>
+        <a href="{% url 'dashboard' %}" class="btn btn-primary mt-3">
+            <i class="bi bi-arrow-left-circle me-2"></i> Voltar ao Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
