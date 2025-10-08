@@ -56,6 +56,8 @@ class CotacaoBid(models.Model):
     rounds = models.IntegerField(null=True)
     tabelaANTT = models.ForeignKey(tabelaANTT, null=True, blank=True, on_delete=models.CASCADE)
     idCliente = models.ForeignKey(CadCliente, on_delete=models.CASCADE )
+    destacado = models.BooleanField(default=False)
+
 
     def __str__(self):
         return f"Cotação {self.nCotacaoBid} - {self.cliente.razaoSocial}"

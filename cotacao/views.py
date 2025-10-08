@@ -12,7 +12,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import random
 from django import forms
 from decimal import Decimal
-
+import traceback
 
 
 # # --- DEFINIÇÃO DO MOCK DE DADOS ---
@@ -383,7 +383,8 @@ def api_search_antt_view(request):
 #     }
 
 #     return render(request, 'cotacao/cotacao_bid_nova.html', context)
-    
+
+
 
 
 def api_search_clients_view(request):
@@ -403,38 +404,87 @@ def api_search_clients_view(request):
     return JsonResponse(list(clients), safe=False)
 
 
-def proxima_etapa_bid_view(request):    
-    if request.method =='POST':
-        cliente_id = request.POST.get('cliente_id')
-        tabela_antt_id = request.POST.get('tabela_antt_id')
+# def proxima_etapa_bid_view(request):    
+    
+#     if request.method =='POST':
+#         cliente_id = request.POST.get('cliente_id')
+#         tabela_antt_id = request.POST.get('tabela_antt_id')
 
 
-        if not cliente_id or not tabela_antt_id:
-            return redirect(reverse('cotacao_bid_nova'))
+#         if not cliente_id or not tabela_antt_id:
+#             return redirect(reverse('cotacao_bid_nova'))
         
-        try:
-            cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
-            tabela_antt = get_object_or_404(tabelaANTT, idTabelaANTT=tabela_antt_id)
+#         try:
+#             cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
+#             tabela_antt = get_object_or_404(tabelaANTT, idTabelaANTT=tabela_antt_id)
 
-            novo_bid = CotacaoBid.objects.create(
-                idCliente = cliente,
-                tabelaANTT=tabela_antt,
-                rounds = 5,
-                nCotacaoBid = 'TEMP'
-            )
-            #Gerando o nCotacaoBID "BID" + ID CLIENTE + IDCOTACAOBID
-            numero_final = f"BID{cliente.idCliente:04d}{novo_bid.idCotacaoBid:04d}"
-            novo_bid.nCotacaoBid = numero_final#ATUALIZA E SALVA O nCotacaoBID
-            novo_bid.save() 
-            return redirect(reverse('cotacao_bid_detalhe', kwargs={'bid_id': novo_bid.idCotacaoBid}))
+#             novo_bid = CotacaoBid.objects.create(
+#                 idCliente = cliente,
+#                 tabelaANTT=tabela_antt,
+#                 rounds = 5,
+#                 nCotacaoBid = 'TEMP'
+#             )
+#             #Gerando o nCotacaoBID "BID" + ID CLIENTE + IDCOTACAOBID
+#             numero_final = f"BID{cliente.idCliente:04d}{novo_bid.idCotacaoBid:04d}"
+#             novo_bid.nCotacaoBid = numero_final#ATUALIZA E SALVA O nCotacaoBID
+#             novo_bid.save() 
+#             return redirect(reverse('cotacao_bid_detalhe', kwargs={'bid_id': novo_bid.idCotacaoBid}))
 
-        except Exception as e:
-            print(f"Erro ao criar o BID: {e}")
-            return redirect(reverse('cotacao_bid_nova'))
+#         except Exception as e:
+#             print(f"Erro ao criar o BID: {e}")
+#             return redirect(reverse('cotacao_bid_nova'))
 
 
 
-    return redirect('cotacao_bid_nova')
+#     return redirect('cotacao_bid_nova')
+
+
+def proxima_etapa_bid_view(request):    
+    if request.method != 'POST':
+        messages.error(request, "Acesso inválido ao tentar prosseguir com o BID.")
+        return redirect('cotacao_bid_nova')
+
+    cliente_id = request.POST.get('cliente_id')
+    tabela_antt_id = request.POST.get('tabela_antt_id')
+
+    # Valida se os dados foram enviados
+    if not cliente_id or not tabela_antt_id:
+        messages.error(request, "Cliente ou Tabela ANTT não selecionados.")
+        return redirect('cotacao_bid_nova')
+
+    try:
+        # Busca o cliente e a tabela ANTT
+        cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
+        tabela_antt = get_object_or_404(tabelaANTT, idTabelaANTT=tabela_antt_id)
+
+        # Cria o BID
+        novo_bid = CotacaoBid.objects.create(
+            idCliente=cliente,
+            tabelaANTT=tabela_antt,
+            rounds=5,
+            nCotacaoBid='TEMP'
+        )
+
+        # Gera o número final do BID
+        numero_final = f"BID{cliente.idCliente:04d}{novo_bid.idCotacaoBid:04d}"
+        novo_bid.nCotacaoBid = numero_final
+        novo_bid.save()
+
+        # Debug: imprime informações no console
+        print("✅ Novo BID criado com sucesso:")
+        print("Cliente:", cliente)
+        print("Tabela ANTT:", tabela_antt)
+        print("BID ID:", novo_bid.idCotacaoBid)
+        print("Número final:", numero_final)
+
+        # Redireciona para a tela de detalhe do BID
+        return redirect(reverse('cotacao_bid_detalhe', kwargs={'bid_id': novo_bid.idCotacaoBid}))
+
+    except Exception as e:
+        print("❌ Erro completo ao criar o BID:")
+        traceback.print_exc()
+        messages.error(request, f"Erro ao criar o BID: {str(e)}")
+        return redirect('cotacao_bid_nova')
 
 
 
@@ -451,6 +501,34 @@ def cotacao_bid_detalhe_view(request, bid_id):
     }
     return render(request, 'cotacao_bid_detalhe.html', context)
 
+
+
+def exibir_cotacoes_view(request):
+    query = request.GET.get('q','')
+    if query:
+        bids = CotacaoBid.objects.filter(
+            Q(nCotacaoBid__icontains=query) |
+            Q(idCliente__razaoSocial__icontains=query)
+        ).order_by('-dataCriacao')
+    else:
+
+    # Busca todas as cotações, ordenando pela data de criação decrescente
+        bids = CotacaoBid.objects.all().order_by('-dataCriacao')
+        
+    context = {
+        'bids': bids
+    }   
+    
+    return render(request, 'cotacao_bid_listagem.html', context)
+
+
+def alternar_destaque_bid(request, bid_id):
+    bid = get_object_or_404(CotacaoBid, idCotacaoBid=bid_id)
+    bid.destacado = not bid.destacado
+    bid.save()
+    return redirect('cotacao_bid_listagem')
+
+
 def cotacao_bid_editar_round_view(request, bid_id, rota_id):
     """ Apenas redireciona de volta para o detalhe do BID. """
     return redirect('cotacao_bid_detalhe', bid_id=bid_id)
@@ -464,47 +542,6 @@ def cotacao_bid_listagem_view(request):
 def cotacao_bid_nova_view(request):
     return render(request, 'cotacao_bid_nova.html', {})
 
-
-
-# def cotacao_bid_detalhe_view(request, bid_id):
-#     """ Renderiza a tela de detalhes do BID (tabela de rotas, cálculos, rounds). """
-#     rotas_filtradas = get_rotas_for_bid(bid_id)
-    
-#     context = {
-#         'bid_id': bid_id,
-#         'rotas': rotas_filtradas,
-#     }
-#     return render(request, 'cotacao_bid_detalhe.html', context)
-
-
-# def cotacao_bid_editar_round_view(request, bid_id, rota_id):
-#     """ Simula o processamento do formulário de edição de round e redireciona de volta. """
-#     if request.method == 'POST':
-#         rota = get_rota_by_id(rota_id)
-
-#         if not rota:
-#             # 🚨 CORREÇÃO: Removido 'cotacao:'
-#             return redirect('cotacao_bid_detalhe', bid_id=bid_id) 
-            
-#         round_name = request.POST.get('round_name')
-#         km_value = request.POST.get('km_value')
-#         percentage_increase = request.POST.get('percentage_increase')
-
-#         # Lógica MOCK para atualizar o preço na rota
-#         novo_preco = float(rota.get('km', 0) or 0) * (float(km_value) if km_value else 0)
-#         novo_preco *= (1 + (float(percentage_increase) if percentage_increase else 0) / 100)
-        
-#         # Simula a atualização do campo R1, R2, etc. na lista MOCK
-#         rota[round_name] = f"R$ {novo_preco:,.2f} (Manual)"
-        
-#         print(f"Rota {rota_id} | Round {round_name} atualizado. Novo Preço: {rota[round_name]}")
-        
-#         # 🚨 CORREÇÃO: Removido 'cotacao:'
-#         return redirect('cotacao_bid_detalhe', bid_id=bid_id)
-
-#     # Se acessar com GET, redireciona para o detalhe
-#     # 🚨 CORREÇÃO: Removido 'cotacao:'
-#     return redirect('cotacao_bid_detalhe', bid_id=bid_id)
 
 
 # =========================================================================

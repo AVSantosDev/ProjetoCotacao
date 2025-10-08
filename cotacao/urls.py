@@ -33,11 +33,13 @@ urlpatterns = [
     path('api/antt/search/', views.api_search_antt_view, name='api_search_antt'),
     path('cotacao/bid/nova/', views.cotacao_bid_nova_view, name='cotacao_bid_nova'),
     path('cotacao/bid/prosseguir/', views.proxima_etapa_bid_view, name='proxima_etapa_bid'), 
-    path('cotacao/bid/detalhe/<int:bid_id>/', views.cotacao_bid_detalhe_view, name='cotacao_bid_detalhe'),
+    path('cotacao/bid/detalhe/<str:bid_id>/', views.cotacao_bid_detalhe_view, name='cotacao_bid_detalhe'),
     path('bid/<int:bid_id>/editar/<int:rota_id>/', views.cotacao_bid_editar_round_view, name='cotacao_bid_editar_round'),
-
+    path('cotacao/bid/listagem', views.exibir_cotacoes_view, name='cotacao_bid_listagem'),
+    path('bid/<int:bid_id>/destaque/', views.alternar_destaque_bid, name='cotacao_bid_destaque'),
     # Rota existente para o detalhe
     path('cotacao/bid/detalhe/<int:bid_id>/', views.cotacao_bid_detalhe_view, name='cotacao_bid_detalhe'),
+    #path('cotacao/bid/<int:bid_id>/', views.cotacao_bid_detalhe_alt_view, name='cotacao_bid_detalhe_alt'),
     
     # ROTA NOVA E FALTANTE: Cotação em Lote por Round (Nome: cotacao_round_lote)
     path('cotacao/bid/cotar/<int:bid_id>/<str:round_name>/', 
