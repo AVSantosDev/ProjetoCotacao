@@ -6,7 +6,7 @@
 {% block content %}
 
     <h3 class="mb-4 text-dark">Cotação BID: <span class="text-primary">BID-2025/{{ bid_id }}</span></h3>
-    <p class="mb-4">Cliente: **Transportadora Alfa Ltda.** | Tabela ANTT: **Carga Geral (Jul/2025)**</p>
+    <p class="mb-4">Cliente: {{cliente.razaoSocial}} | Tabela ANTT: {{antt.Descricao}}</p>
     
     <div class="card shadow mb-4">
         <div class="card-header py-3 bg-light border-0 d-flex justify-content-between align-items-center">

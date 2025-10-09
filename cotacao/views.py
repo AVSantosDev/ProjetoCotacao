@@ -13,6 +13,7 @@ import random
 from django import forms
 from decimal import Decimal
 import traceback
+import pandas as pd
 
 
 # # --- DEFINIÇÃO DO MOCK DE DADOS ---
@@ -493,7 +494,6 @@ def proxima_etapa_bid_view(request):
         return redirect('cotacao_bid_nova')
 
 
-
 def cotacao_bid_detalhe_view(request, bid_id):
     """ Renderiza a tela de detalhes do BID sem buscar rotas. """
     # Busca o BID
@@ -506,7 +506,6 @@ def cotacao_bid_detalhe_view(request, bid_id):
         'rotas': [],  # Nenhuma rota por enquanto
     }
     return render(request, 'cotacao_bid_detalhe.html', context)
-
 
 
 def exibir_cotacoes_view(request):
@@ -540,13 +539,15 @@ def cotacao_bid_editar_round_view(request, bid_id, rota_id):
     return redirect('cotacao_bid_detalhe', bid_id=bid_id)
 
 
-
-
 def cotacao_bid_listagem_view(request):
     return render(request, 'cotacao_bid_listagem.html', {})
 
 def cotacao_bid_nova_view(request):
     return render(request, 'cotacao_bid_nova.html', {})
+
+
+#importando planilha para criação de rotas no bid
+
 
 
 
