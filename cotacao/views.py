@@ -2,10 +2,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from .forms import ClienteForm
 from django.contrib import messages
 from django.db import transaction, IntegrityError
-from .models import CadCliente, tabelaANTT, CotacaoBid
+from .models import CadCliente, tabelaANTT, CotacaoBid, DetalheCotacaoBid
 from django.db.models import Q
 from faker import Faker
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -13,7 +14,9 @@ import random
 from django import forms
 from decimal import Decimal
 import traceback
+import unicodedata
 import pandas as pd
+import json
 
 
 # # --- DEFINIÇÃO DO MOCK DE DADOS ---
@@ -547,6 +550,216 @@ def cotacao_bid_nova_view(request):
 
 
 #importando planilha para criação de rotas no bid
+
+
+
+# def upload_rotas_preview(request, bid_id):
+#     if request.method == 'POST':
+#         if 'planilha' not in request.FILES:
+#             return JsonResponse({'error': 'Nenhum arquivo enviado'}, status=400)
+
+#         arquivo = request.FILES['planilha']
+
+#         try:
+#             # Tenta ler a planilha (Excel ou CSV)
+#             if arquivo.name.endswith('.csv'):
+#                 df = pd.read_csv(arquivo, sep=';', encoding='utf-8', nrows=1)
+#             else:
+#                 df = pd.read_excel(arquivo, nrows=1)
+
+#             colunas = df.columns.tolist()
+#             return JsonResponse({'columns': colunas})
+
+#         except Exception as e:
+#             return JsonResponse({'error': f'Erro ao processar arquivo: {str(e)}'}, status=400)
+
+#     return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+
+#tratamento de diferentes tipos de escrição das palavras
+def normalize_text(text):
+    text = str(text).strip().lower()
+    return ''.join(
+        c for c in unicodedata.normalize('NFKD', text)
+        if not unicodedata.combining(c)
+    )
+
+
+
+# def upload_rotas_preview(request, bid_id):
+#     if request.method != 'POST':
+#         return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+#     if 'planilha' not in request.FILES:
+#         return JsonResponse({'error': 'Nenhum arquivo enviado'}, status=400)
+
+#     arquivo = request.FILES['planilha']
+
+#     try:
+#         # Lê todas as linhas sem assumir cabeçalho
+#         if arquivo.name.endswith('.csv'):
+#             df = pd.read_csv(arquivo, sep=';', encoding='utf-8', header=None, on_bad_lines='skip')
+#         else:
+#             df = pd.read_excel(arquivo, engine='openpyxl', header=None)
+
+#         df = df.fillna('')
+
+#         # Detecta linha que contém palavras-chave
+#         keywords = ['origem', 'destino', 'veiculo']
+#         header_row_idx = None
+
+#         for idx, row in df.iterrows():
+#             row_str = ' '.join([str(cell).lower() for cell in row])
+#             if all(kw in row_str for kw in ['origem', 'destino']):
+#                 header_row_idx = idx
+#                 break
+
+#         if header_row_idx is not None:
+#             df.columns = df.iloc[header_row_idx]  # define essa linha como header
+#             df = df[header_row_idx + 1:]  # remove linhas acima do header
+#         else:
+#             # se não encontrar, usa a primeira linha como header
+#             df.columns = df.iloc[0]
+#             df = df[1:]
+
+#         df = df.reset_index(drop=True)
+#         preview = df.head(5).to_dict(orient='records')
+#         columns = df.columns.tolist()
+
+#         # Detecta automaticamente as colunas
+#         detected = {}
+#         keywords_map = {'origem': 'origem', 'destino': 'destino', 'veiculo': 'veiculo'}
+#         for key, word in keywords_map.items():
+#             for col in columns:
+#                 if word.lower() in str(col).lower():
+#                     detected[key] = col
+#                     break
+#             else:
+#                 detected[key] = ''
+
+#         print("COLUNAS:", columns)
+#         print("DETECTED:", detected)
+
+#         return JsonResponse({
+#             'columns': columns,
+#             'preview': preview,
+#             'detected': detected
+#         })
+
+#     except Exception as e:
+#         request.session[f'preview_{bid_id}'] = df.to_dict(orient='records')  # salva como lista de dicts
+#         request.session.modified = True
+#         return JsonResponse({'error': f'Erro ao processar arquivo: {str(e)}'}, status=400)
+    
+
+
+def upload_rotas_preview(request, bid_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+    if 'planilha' not in request.FILES:
+        return JsonResponse({'error': 'Nenhum arquivo enviado'}, status=400)
+
+    arquivo = request.FILES['planilha']
+
+    try:
+        # Lê todas as linhas sem assumir cabeçalho
+        if arquivo.name.endswith('.csv'):
+            df = pd.read_csv(arquivo, sep=';', encoding='utf-8', header=None, on_bad_lines='skip')
+        else:
+            df = pd.read_excel(arquivo, engine='openpyxl', header=None)
+
+        df = df.fillna('')
+
+        # Detecta linha que contém palavras-chave
+        header_row_idx = None
+        keywords = ['origem', 'destino']
+        for idx, row in df.iterrows():
+            row_str = ' '.join([str(cell).lower() for cell in row])
+            if all(kw in row_str for kw in keywords):
+                header_row_idx = idx
+                break
+
+        if header_row_idx is not None:
+            df.columns = df.iloc[header_row_idx]
+            df = df[header_row_idx + 1:]
+        else:
+            df.columns = df.iloc[0]
+            df = df[1:]
+
+        df = df.reset_index(drop=True)
+
+        # Remove colunas vazias e duplicadas
+        df = df.loc[:, ~df.columns.duplicated()]
+        df = df.loc[:, df.columns.str.strip() != '']
+
+        preview = df.head(5).to_dict(orient='records')
+        columns = df.columns.tolist()
+
+        # Detecta automaticamente as colunas
+        detected = {}
+        for key in ['origem', 'destino', 'veiculo']:
+            detected[key] = ''
+            for col in columns:
+                if key in str(col).lower():
+                    detected[key] = col
+                    break
+
+        # Salva na sessão
+        request.session[f'preview_{bid_id}'] = df.to_dict(orient='records')
+        request.session.modified = True
+
+        return JsonResponse({
+            'columns': columns,
+            'preview': preview,
+            'detected': detected
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': f'Erro ao processar arquivo: {str(e)}'}, status=400)
+
+
+
+def upload_rotas_importar(request, bid_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        origem_col = data.get('origem')
+        destino_col = data.get('destino')
+        veiculo_col = data.get('veiculo', '')
+
+        if not origem_col or not destino_col:
+            return JsonResponse({'error': 'Origem e Destino são obrigatórios.'})
+
+        # Reconstrói DataFrame da session
+        df_dict = request.session.get(f'preview_{bid_id}')
+        if df_dict is None:
+            return JsonResponse({'error': 'Nenhuma planilha carregada na sessão.'})
+        df = pd.DataFrame(df_dict)
+
+        # Monta lista de rotas
+        rotas = []
+        for _, row in df.iterrows():
+            rota = {
+                'origem': row.get(origem_col, '').strip(),
+                'destino': row.get(destino_col, '').strip()
+            }
+            if veiculo_col:
+                rota['veiculo'] = row.get(veiculo_col, '').strip()
+            rotas.append(rota)
+
+        # Aqui você salva no banco de dados
+        # Exemplo: Rota.objects.bulk_create([...])
+
+        return JsonResponse({'success': True})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)})
+
+
+
 
 
 

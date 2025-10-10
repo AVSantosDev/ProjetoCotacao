@@ -28,7 +28,7 @@
                     </ul>
                 </div>
                 
-                <button type="button" class="btn btn-success me-2">
+                <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#uploadRotasModal">
                     <i class="bi bi-upload me-1"></i> Upload Rotas
                 </button>
                 <button type="button" class="btn btn-info text-white">
@@ -180,6 +180,65 @@
         </div>
     </div>
 
+    <!-- Modal de Upload de Rotas -->
+<div class="modal fade" id="uploadRotasModal" tabindex="-1" aria-labelledby="uploadRotasModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+    <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="uploadRotasModalLabel">Importar Rotas - Passo 1 de 3</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <!-- PASSO 1: Upload -->
+        <div id="step1">
+        <p class="fw-bold">Selecione a planilha (.xlsx ou .csv) com as rotas:</p>
+        <form id="uploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="planilha" id="planilhaInput" class="form-control" accept=".xlsx,.csv" required>
+            <button type="button" class="btn btn-success mt-3 w-100" onclick="enviarPlanilha()">Enviar Planilha</button>
+        </form>
+        </div>
+
+        <!-- PASSO 2: Escolher Colunas -->
+        <div id="step2" style="display:none;">
+        <h6 class="fw-bold">Passo 2 de 3 — Mapeie as colunas:</h6>
+        <p>Selecione abaixo as colunas que correspondem a cada campo:</p>
+        <form id="columnMappingForm" class="mt-3">
+        <div class="mb-3">
+            <label class="form-label">Origem:</label>
+            <select id="col-origem" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Destino:</label>
+            <select id="col-destino" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Veículo:</label>
+            <select id="col-veiculo" class="form-select"></select>
+        </div>
+        <button type="button" class="btn btn-primary w-100" onclick="confirmarImportacao()">Confirmar e Importar</button>
+        </form>
+        </div>
+
+        <!-- PASSO 3: Confirmação -->
+        <div id="step3" style="display:none;">
+        <h6 class="fw-bold text-success">✅ Importação concluída com sucesso!</h6>
+        <p>As rotas foram salvas no banco de dados. Você já pode visualizá-las na tabela principal.</p>
+        <button class="btn btn-outline-success w-100" data-bs-dismiss="modal">Fechar</button>
+        </div>
+    </div>
+    </div>
+</div>
+</div>
+
+
+
+
+
+
+
+
+
 {% endblock %}
 
 {% block extra_js %}
@@ -252,5 +311,112 @@
         alert('Chamando API Externa para cálculo de KM, Pedágio e Frete Mínimo para todas as rotas restantes. Aguarde...');
         // Ação AJAX para chamar a View do Django que integra com a API de rotas.
     }
+
+
+    function enviarPlanilha(){
+    const fileInput = document.getElementById('planilhaInput');
+    const file = fileInput.files[0];
+    if (!file) return alert("Selecione uma planilha primeiro!");
+
+    const formData = new FormData();
+    formData.append('planilha', file);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch("{% url 'upload_rotas_preview' bid_id=bid_id %}", {
+        method: "POST",
+        body: formData
+    })
+    .then(async response => {
+    const text = await response.text();
+    try {
+        return JSON.parse(text);
+    } catch {
+        console.error("Resposta inválida:", text);
+        throw new Error("Servidor retornou algo que não é JSON");
+    }
+    })
+    .then(data => {
+        console.log(data);
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        if (data.columns && data.preview) {
+            // Montar preview da planilha
+            const previewDiv = document.createElement('div');
+            previewDiv.classList.add('table-responsive');
+            let tableHTML = '<table class="table table-bordered table-sm"><thead><tr>';
+            data.columns.forEach(col => { tableHTML += `<th>${col}</th>` });
+            tableHTML += '</tr></thead><tbody>';
+            data.preview.forEach(row => {
+                tableHTML += '<tr>';
+                data.columns.forEach(col => {
+                    tableHTML += `<td>${row[col] !== undefined ? row[col] : ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody></table>';
+            previewDiv.innerHTML = tableHTML;
+
+            // Preenche selects
+        const selects = ['col-origem', 'col-destino', 'col-veiculo'];
+        selects.forEach(id => {
+            const select = document.getElementById(id);
+            select.innerHTML = '';
+            data.columns.forEach(col => {
+                const opt = document.createElement('option');
+                opt.value = col;
+                opt.textContent = col;
+                select.appendChild(opt);
+            });
+
+            // Seleciona a coluna detectada automaticamente
+            if (id === 'col-origem') select.value = data.detected.origem || '';
+            if (id === 'col-destino') select.value = data.detected.destino || '';
+            if (id === 'col-veiculo') select.value = data.detected.veiculo || '';
+        });
+
+        // Mostra etapa 2
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('uploadRotasModalLabel').innerText = "Importar Rotas - Passo 2 de 3";
+
+            // Adiciona preview da planilha dentro do step2
+            const existingPreview = document.getElementById('planilhaPreview');
+            if (existingPreview) existingPreview.remove(); // Evita duplicação
+            previewDiv.id = 'planilhaPreview';
+            document.getElementById('step2').prepend(previewDiv);
+
+        } else {
+            alert("Erro: não foi possível gerar preview da planilha.");
+        }
+    })
+    .catch(err => {
+        alert("Erro ao enviar planilha: " + err);
+    });
+    
+    
+
+
+    document.getElementById('uploadRotasModal').addEventListener('hidden.bs.modal', function () {
+        
+        document.getElementById('planilhaInput').value = '';
+        document.getElementById('step1').style.display = 'block';
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('step3').style.display = 'none';
+        document.getElementById('uploadRotasModalLabel').innerText = 'Importar Rotas - Passo 1 de 3';
+        const preview = document.getElementById('planilhaPreview');
+        if (preview) preview.remove();
+    });
+}
+
+
+
+
+
+
+
 </script>
 {% endblock %}

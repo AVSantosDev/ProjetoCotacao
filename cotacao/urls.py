@@ -37,6 +37,10 @@ urlpatterns = [
     path('bid/<int:bid_id>/editar/<int:rota_id>/', views.cotacao_bid_editar_round_view, name='cotacao_bid_editar_round'),
     path('cotacao/bid/listagem', views.exibir_cotacoes_view, name='cotacao_bid_listagem'),
     path('bid/<int:bid_id>/destaque/', views.alternar_destaque_bid, name='cotacao_bid_destaque'),
+    path('bid/<int:bid_id>/upload/preview/', views.upload_rotas_preview, name='upload_rotas_preview'),
+    path('bid/<int:bid_id>/upload/importar/', views.upload_rotas_importar, name='upload_rotas_importar'),
+
+
     # Rota existente para o detalhe
     path('cotacao/bid/detalhe/<int:bid_id>/', views.cotacao_bid_detalhe_view, name='cotacao_bid_detalhe'),
     #path('cotacao/bid/<int:bid_id>/', views.cotacao_bid_detalhe_alt_view, name='cotacao_bid_detalhe_alt'),
