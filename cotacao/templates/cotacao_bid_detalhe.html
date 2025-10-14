@@ -216,7 +216,7 @@
             <label class="form-label">Veículo:</label>
             <select id="col-veiculo" class="form-select"></select>
         </div>
-        <button type="button" class="btn btn-primary w-100" onclick="confirmarImportacao()">Confirmar e Importar</button>
+        <button type="button" class="btn btn-primary w-100" id="btn-confirmar-importacao" onclick="confirmarImportacao()">Confirmar e Importar</button>
         </form>
         </div>
 
@@ -313,106 +313,163 @@
     }
 
 
+    
+    
     function enviarPlanilha(){
-    const fileInput = document.getElementById('planilhaInput');
-    const file = fileInput.files[0];
-    if (!file) return alert("Selecione uma planilha primeiro!");
-
-    const formData = new FormData();
-    formData.append('planilha', file);
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-    fetch("{% url 'upload_rotas_preview' bid_id=bid_id %}", {
-        method: "POST",
-        body: formData
-    })
-    .then(async response => {
-    const text = await response.text();
-    try {
-        return JSON.parse(text);
-    } catch {
-        console.error("Resposta inválida:", text);
-        throw new Error("Servidor retornou algo que não é JSON");
-    }
-    })
-    .then(data => {
-        console.log(data);
-
-        if (data.error) {
-            alert(data.error);
-            return;
+        const fileInput = document.getElementById('planilhaInput');
+        const file = fileInput.files[0];
+        if (!file) return alert("Selecione uma planilha primeiro!");
+    
+        const formData = new FormData();
+        formData.append('planilha', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+        fetch("{% url 'upload_rotas_preview' bid_id=bid_id %}", {
+            method: "POST",
+            body: formData
+        })
+        .then(async response => {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            console.error("Resposta inválida:", text);
+            throw new Error("Servidor retornou algo que não é JSON");
         }
-
-        if (data.columns && data.preview) {
-            // Montar preview da planilha
-            const previewDiv = document.createElement('div');
-            previewDiv.classList.add('table-responsive');
-            let tableHTML = '<table class="table table-bordered table-sm"><thead><tr>';
-            data.columns.forEach(col => { tableHTML += `<th>${col}</th>` });
-            tableHTML += '</tr></thead><tbody>';
-            data.preview.forEach(row => {
-                tableHTML += '<tr>';
-                data.columns.forEach(col => {
-                    tableHTML += `<td>${row[col] !== undefined ? row[col] : ''}</td>`;
+        })
+        .then(data => {
+            console.log(data);
+    
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+    
+            if (data.columns && data.preview) {
+                // Montar preview da planilha
+                const previewDiv = document.createElement('div');
+                previewDiv.classList.add('table-responsive');
+                let tableHTML = '<table class="table table-bordered table-sm"><thead><tr>';
+                data.columns.forEach(col => { tableHTML += `<th>${col}</th>` });
+                tableHTML += '</tr></thead><tbody>';
+                data.preview.forEach(row => {
+                    tableHTML += '<tr>';
+                    data.columns.forEach(col => {
+                        tableHTML += `<td>${row[col] !== undefined ? row[col] : ''}</td>`;
+                    });
+                    tableHTML += '</tr>';
                 });
-                tableHTML += '</tr>';
+                tableHTML += '</tbody></table>';
+                previewDiv.innerHTML = tableHTML;
+    
+                // Preenche selects
+            const selects = ['col-origem', 'col-destino', 'col-veiculo'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = '';
+                data.columns.forEach(col => {
+                    const opt = document.createElement('option');
+                    opt.value = col;
+                    opt.textContent = col;
+                    select.appendChild(opt);
+                });
+            
+                // Seleciona a coluna detectada automaticamente
+                if (id === 'col-origem') select.value = data.detected.origem || '';
+                if (id === 'col-destino') select.value = data.detected.destino || '';
+                if (id === 'col-veiculo') select.value = data.detected.veiculo || '';
             });
-            tableHTML += '</tbody></table>';
-            previewDiv.innerHTML = tableHTML;
-
-            // Preenche selects
-        const selects = ['col-origem', 'col-destino', 'col-veiculo'];
-        selects.forEach(id => {
-            const select = document.getElementById(id);
-            select.innerHTML = '';
-            data.columns.forEach(col => {
-                const opt = document.createElement('option');
-                opt.value = col;
-                opt.textContent = col;
-                select.appendChild(opt);
-            });
-
-            // Seleciona a coluna detectada automaticamente
-            if (id === 'col-origem') select.value = data.detected.origem || '';
-            if (id === 'col-destino') select.value = data.detected.destino || '';
-            if (id === 'col-veiculo') select.value = data.detected.veiculo || '';
-        });
-
-        // Mostra etapa 2
-            document.getElementById('step1').style.display = 'none';
-            document.getElementById('step2').style.display = 'block';
-            document.getElementById('uploadRotasModalLabel').innerText = "Importar Rotas - Passo 2 de 3";
-
-            // Adiciona preview da planilha dentro do step2
-            const existingPreview = document.getElementById('planilhaPreview');
-            if (existingPreview) existingPreview.remove(); // Evita duplicação
-            previewDiv.id = 'planilhaPreview';
-            document.getElementById('step2').prepend(previewDiv);
-
-        } else {
-            alert("Erro: não foi possível gerar preview da planilha.");
-        }
-    })
-    .catch(err => {
-        alert("Erro ao enviar planilha: " + err);
+    
+            // Mostra etapa 2
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').style.display = 'block';
+                document.getElementById('uploadRotasModalLabel').innerText = "Importar Rotas - Passo 2 de 3";
+    
+                // Adiciona preview da planilha dentro do step2
+                const existingPreview = document.getElementById('planilhaPreview');
+                if (existingPreview) existingPreview.remove(); // Evita duplicação
+                previewDiv.id = 'planilhaPreview';
+                document.getElementById('step2').prepend(previewDiv);
+    
+            } else {
+                alert("Erro: não foi possível gerar preview da planilha.");
+            }
+        })
+        .catch(err => {
+            alert("Erro ao enviar planilha: " + err);
     });
-    
-    
-
-
-    document.getElementById('uploadRotasModal').addEventListener('hidden.bs.modal', function () {
         
-        document.getElementById('planilhaInput').value = '';
-        document.getElementById('step1').style.display = 'block';
-        document.getElementById('step2').style.display = 'none';
-        document.getElementById('step3').style.display = 'none';
-        document.getElementById('uploadRotasModalLabel').innerText = 'Importar Rotas - Passo 1 de 3';
-        const preview = document.getElementById('planilhaPreview');
-        if (preview) preview.remove();
-    });
+        
+    
+    function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
 
 
+async function confirmarImportacao() {
+    const btn = document.getElementById("btn-confirmar-importacao");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Importando...`;
+    
+    const origem = document.getElementById("col-origem").value;
+    const destino = document.getElementById("col-destino").value;
+    const veiculo = document.getElementById("col-veiculo").value;
+    
+    try {
+        const response = await fetch("{% url 'upload_rotas_importar' bid_id=bid_id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken(),
+            },
+            debugger
+            body: JSON.stringify({
+                origem: origem,
+                destino: destino,
+                veiculo: veiculo
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById("step2").style.display = "none";
+            document.getElementById("step3").style.display = "block";
+            debugger
+            document.getElementById("uploadRotasModalLabel").innerText = "Importar Rotas - Passo 3 de 3";
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert("Erro ao importar: " + (data.error || "Erro desconhecido."));
+        }
+    } catch (error) {
+        alert("Erro inesperado ao importar rotas.");
+        console.error(error);
+    } finally {
+        debugger
+
+        btn.disabled = false;
+        btn.innerHTML = "Confirmar e Importar";
+    }
+}
+    
+        // ----------------------------------------------------------------------
+        // 4. Reset do Modal ao Fechar (Mantido do seu código)
+        // ----------------------------------------------------------------------
+        document.getElementById('uploadRotasModal').addEventListener('hidden.bs.modal', function () {
+            
+            document.getElementById('planilhaInput').value = '';
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('uploadRotasModalLabel').innerText = 'Importar Rotas - Passo 1 de 3';
+            const preview = document.getElementById('planilhaPreview');
+            if (preview) preview.remove();
+        });
+}
 
 
 

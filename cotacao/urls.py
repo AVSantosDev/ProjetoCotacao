@@ -30,6 +30,7 @@ urlpatterns = [
     path('cotacao/bid/', views.cotacao_bid_listagem_view, name='cotacao_bid_listagem'),
     path('api/cliente/search/',views.api_search_clients_view, name='api_search_clients'),
     path ('setup/tabela-antt/inicializar/', views.inicializar_tabelas_antt_view, name='inicializar'),
+    path ('setup/tabela-antt/inicializar/', views.inicializar_tabelas_antt_view, name='inicializar_tabelas_antt'),
     path('api/antt/search/', views.api_search_antt_view, name='api_search_antt'),
     path('cotacao/bid/nova/', views.cotacao_bid_nova_view, name='cotacao_bid_nova'),
     path('cotacao/bid/prosseguir/', views.proxima_etapa_bid_view, name='proxima_etapa_bid'), 
@@ -38,8 +39,8 @@ urlpatterns = [
     path('cotacao/bid/listagem', views.exibir_cotacoes_view, name='cotacao_bid_listagem'),
     path('bid/<int:bid_id>/destaque/', views.alternar_destaque_bid, name='cotacao_bid_destaque'),
     path('bid/<int:bid_id>/upload/preview/', views.upload_rotas_preview, name='upload_rotas_preview'),
-    path('bid/<int:bid_id>/upload/importar/', views.upload_rotas_importar, name='upload_rotas_importar'),
-
+    path('bid/<int:bid_id>/upload/final/', views.upload_rotas_importar, name='upload_rotas_final'),
+    path('upload-rotas/importar/<int:bid_id>/', views.upload_rotas_importar, name='upload_rotas_importar'),
 
     # Rota existente para o detalhe
     path('cotacao/bid/detalhe/<int:bid_id>/', views.cotacao_bid_detalhe_view, name='cotacao_bid_detalhe'),

@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 {% load static %}
 
@@ -64,26 +63,22 @@
                 </div>
                 
                 <div class="col-md-6">
-                <label for="tabela_antt" class="form-label fw-bold">Tabela ANTT para Frete Mínimo</label>
+                    <label for="tabela_antt_input" class="form-label fw-bold">Tabela ANTT para Frete Mínimo</label>
 
-                <input list="anttOptions" 
-                    class="form-control" 
-                    id="tabela_antt"
-                    name="tabela_antt"
-                    placeholder="Digite para buscar a tabela ANTT..."
-                    {% if antt_vazio %}disabled{% endif %}
-                    required>
+                    <input type="text" 
+                        class="form-control" 
+                        id="tabela_antt_input"
+                        name="tabela_antt_display" placeholder="Clique para ver ou digite para buscar a tabela ANTT..."
+                        onkeyup="searchAntt()"
+                        onfocus="searchAntt(true)" {% if antt_vazio %}disabled{% endif %}
+                        required>
+                    
+                    <input type="hidden" name="tabela_antt_id" id="antt_id_hidden" required>
 
-                <datalist id="anttOptions"></datalist>
-
-                <input type="hidden" name="tabela_antt_id" id="antt_id_hidden" required>
-
-                <p id="selected_antt_display" class="fw-bold text-primary mb-0" style="min-height: 1.5rem;">
-                    Tabela ANTT não selecionada.
-                </p>
-            </div>
-
-                    <!-- Container para os resultados da busca ANTT -->
+                    <p id="selected_antt_display" class="fw-bold text-primary mb-0" style="min-height: 1.5rem;">
+                        Tabela ANTT não selecionada.
+                    </p>
+                    
                     <div id="antt_results_container" class="mt-2" style="max-height: 300px; overflow-y: auto;">
                     </div>
                 </div>
@@ -101,12 +96,27 @@
 
 {% block extra_js %}
 <script>
-    // URL para a busca de clientes (você precisará criar essa URL e a View)
+    // ----------------------------------------------------
+    // VARIÁVEIS DE CONTROLE
+    // ----------------------------------------------------
     const CLIENT_SEARCH_URL = "{% url 'api_search_clients' %}"; 
-    let searchTimeout;
-    let anttSearchTimeout;
+    const ANTT_SEARCH_URL = "{% url 'api_search_antt' %}";
+    
+    let searchTimeout; // Debounce para Cliente
+    let anttSearchTimeout; // Debounce para ANTT
 
-    // 1. Lógica de Busca de Clientes (Disparada ao digitar)
+    // Elementos ANTT (referenciam os novos IDs)
+    const anttInput = document.getElementById('tabela_antt_input');
+    const anttResultsContainer = document.getElementById('antt_results_container');
+    const anttHiddenId = document.getElementById('antt_id_hidden');
+    const anttDisplay = document.getElementById('selected_antt_display');
+
+
+    // ----------------------------------------------------
+    // 1. LÓGICA DE CLIENTE (MANTIDA IGUAL)
+    // ----------------------------------------------------
+
+    // Lógica de Busca de Clientes (Disparada ao digitar)
     function searchClients() {
         // Limpa o timeout anterior para evitar múltiplas chamadas rápidas
         clearTimeout(searchTimeout);
@@ -178,74 +188,120 @@
         }, 300);
     }
     
-    // 2. Lógica de Seleção (Chamada ao clicar em "Selecionar")
+    // Lógica de Seleção (Chamada ao clicar em "Selecionar")
     function selectClient(id, razaoSocial, cnpj) {
+        //debugger
+        console.log(id, razaoSocial);
         const hiddenIdInput = document.getElementById('cliente_id_hidden');
         
         // 1. Preenche o campo hidden com o ID (para submissão do form)
         hiddenIdInput.value = id;
         
+        hiddenIdInput.dispatchEvent(new Event('change')); 
+        
         // 2. Preenche o campo de exibição
         document.getElementById('selected_client_display').textContent = `Cliente Selecionado: ${razaoSocial} | CNPJ: ${cnpj}`;
         
         // 3. Limpa a área de busca/resultados
-        document.getElementById('search_term').value = razaoSocial; // Opcional: coloca o nome no campo de busca
+        document.getElementById('search_term').value = razaoSocial; 
         document.getElementById('client_results_container').innerHTML = '';
+    }
+
+
+    // ----------------------------------------------------
+    // 2. LÓGICA DA TABELA ANTT
+    // ----------------------------------------------------
+
+    // Lógica de Busca de Tabelas ANTT (Disparada por input ou focus)
+    function searchAntt(isFocus = false) {
+        clearTimeout(anttSearchTimeout);
+
+        const term = anttInput.value.trim();
+        // Se não for um evento de clique (focus) E o termo for muito curto, limpa e sai.
+        // Se for foco (isFocus=true) e não houver termo, buscamos todas (finalTerm = '')
+        if (!isFocus && term.length < 2) {
+            anttResultsContainer.innerHTML = '';
+            return;
+        }
         
-        // 4. Se o seu form tiver validação, você pode forçá-lo a atualizar o estado 'required' aqui, se necessário.
+        // Limpa a seleção anterior
+        anttDisplay.textContent = 'Tabela ANTT não selecionada.';
+        anttHiddenId.value = '';
+
+        // Define o termo de busca para vazio se for apenas foco no campo
+        const finalTerm = isFocus ? '' : term;
+
+        anttSearchTimeout = setTimeout(() => {
+            
+            anttResultsContainer.innerHTML = `<p class="text-info text-center">
+                <i class="bi bi-arrow-clockwise spinner-border spinner-border-sm me-2"></i> Buscando...
+            </p>`;
+
+            fetch(`${ANTT_SEARCH_URL}?q=${finalTerm}`)
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    if (data.length === 0) {
+                        html = '<p class="text-danger text-center">Nenhuma tabela ANTT encontrada.</p>';
+                    } else {
+                        html = `
+                            <table class="table table-sm table-hover border">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th>Código</th>
+                                        <th>Descrição</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        data.forEach(tabela => {
+                            // OBS: Certifique-se de que sua view 'api_search_antt' retorna 'id', 'codTabelaANTT' e 'Descricao'
+                            html += `
+                                <tr>
+                                    <td>${tabela.codTabelaANTT}</td>
+                                    <td>${tabela.Descricao}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-primary" 
+                                            onclick="selectAntt(${tabela.id}, '${tabela.codTabelaANTT}', '${tabela.Descricao}')">
+                                            Selecionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        html += `</tbody></table>`;
+                    }
+                    anttResultsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    anttResultsContainer.innerHTML = '<p class="text-danger text-center">Erro ao buscar tabelas ANTT.</p>';
+                    console.error('Fetch error:', error);
+                });
+
+        }, 300);
     }
 
+    // 4 Lógica de Seleção da Tabela ANTT
+    function selectAntt(id, cod, descricao) {
+    //debugger
+    console.log("ANTT SELECIONADA - ID:", id, "Código:", cod);
+    
+    // 1. Preenche o campo hidden com o ID (para submissão do form)
+    anttHiddenId.value = id;
+    anttHiddenId.dispatchEvent(new Event('change'));
+    
+    // 2. Preenche o campo de exibição
+    anttDisplay.textContent = `Tabela Selecionada: ${cod} - ${descricao}`;
+    
+    // 3. Limpa a área de busca/resultados
+    anttInput.value = descricao; // Coloca a descrição no campo de busca
+    anttResultsContainer.innerHTML = '';
+    
+    // --- DEBUG EXTRA ---
+    console.log("ID Hidden (Valor Final):", anttHiddenId.value);
+    // --- DEBUG EXTRA ---
+}
 
-const ANTT_SEARCH_URL = "{% url 'api_search_antt' %}";
-const datalist = document.getElementById('anttOptions');
-const searchInput = document.getElementById('tabela_antt');
-const hiddenId = document.getElementById('antt_id_hidden');
-const display = document.getElementById('selected_antt_display');
-
-searchInput.addEventListener('input', () => {
-    const term = searchInput.value.trim();
-    if (term.length < 2) return; // evita chamadas desnecessárias
-
-    fetch(`${ANTT_SEARCH_URL}?q=${term}`)
-        .then(response => response.json())
-        .then(data => {
-            datalist.innerHTML = '';
-            data.forEach(tabela => {
-                const option = document.createElement('option');
-                option.value = tabela.Descricao;
-                option.setAttribute('data-id', tabela.id);
-                datalist.appendChild(option);
-            });
-        });
-});
-
-searchInput.addEventListener('change', () => {
-    const selectedOption = Array.from(datalist.options)
-        .find(opt => opt.value === searchInput.value);
-    if (selectedOption) {
-        hiddenId.value = selectedOption.getAttribute('data-id');
-        display.textContent = `Tabela ANTT Selecionada: ${selectedOption.value}`;
-    } else {
-        hiddenId.value = '';
-        display.textContent = 'Tabela ANTT não selecionada.';
-    }
-});
 </script>
-
-
-
 {% endblock %}
-
-{% comment %}             
-                <div class="card-body bg-light border-bottom border-danger p-3"> <form method="POST" action="{% url 'inicializar_tabelas_antt' %}" class="mb-0">
-                        {% csrf_token %}
-                        <div class="alert alert-danger mb-0 text-center" role="alert">
-                            <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i> Atenção!</h5>
-                            <p class="mb-2">A tabela de Frete Mínimo ANTT está vazia. É necessário inicializar os dados padrões.</p>
-                            
-                            <button type="submit" class="btn btn-danger btn-lg w-75 mt-2">
-                                <i class="bi bi-database-fill-add me-2"></i> Cadastrar Tabelas ANTT Padrão
-                            </button>
-                        </div>
-                    </form>
-                </div> {% endcomment %}

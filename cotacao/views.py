@@ -17,33 +17,8 @@ import traceback
 import unicodedata
 import pandas as pd
 import json
-
-
-# # --- DEFINIÇÃO DO MOCK DE DADOS ---
-# # Use uma lista de dicionários para simular o banco de dados.
-# # O MOCK precisa ter um ID único para funcionar corretamente.
-# rotas_mock = [
-#     # MOCK de dados para rotas na listagem de detalhes do BID
-#     {'id': 1, 'bid_id': 1001, 'cod': 'BID-1001-A', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'São Paulo - SP', 'destino': 'Rio de Janeiro - RJ', 'veiculo': 'Caminhão', 'eixos': 5, 'R1': 'R$ 3.800,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 900},
-#     {'id': 2, 'bid_id': 1001, 'cod': 'BID-1001-B', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Florianópolis - SC', 'veiculo': 'Carreta LS', 'eixos': 6, 'R1': 'R$ 1.950,00', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
-#     {'id': 3, 'bid_id': 1001, 'cod': 'BID-1001-C', 'grupo': 'Transportadora Alfa Ltda.', 'origem': 'Curitiba - PR', 'destino': 'Porto Alegre - RS', 'veiculo': 'VUC', 'eixos': 2, 'R1': 'R$ 2.100', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 700},
-#     # Adicionando um BID diferente para teste
-#     {'id': 4, 'bid_id': 1002, 'cod': 'BID-1002-D', 'grupo': 'G-100', 'origem': 'Recife - PE', 'destino': 'Natal - RN', 'veiculo': 'Truck', 'eixos': 3, 'R1': '-', 'R2': '-', 'R3': '-', 'R4': '-', 'R5': '-', 'km': 300},
-# ]
-# # ---------------------------------------------------------
-
-# # --- FUNÇÃO AUXILIAR MOCK PARA BUSCAR ROTAS ---
-# def get_rotas_for_bid(bid_id):
-#     """ Filtra rotas_mock pelo bid_id. """
-#     return [r for r in rotas_mock if r['bid_id'] == bid_id]
-
-# # --- FUNÇÃO AUXILIAR MOCK PARA OBTER DADOS DE ROTA ---
-# def get_rota_by_id(rota_id):
-#     """ Busca uma rota pelo ID. """
-#     for rota in rotas_mock:
-#         if rota['id'] == rota_id:
-#             return rota
-#     return None
+from django.views.decorators.http import require_POST 
+from django.views.decorators.csrf import csrf_exempt
 
 # # --- FUNÇÃO AUXILIAR PARA OBTER PREÇO DO ROUND ---
 # def get_round_price(rota, round_name):
@@ -249,7 +224,7 @@ def gerar_clientes_teste_view(request):
     """
     if request.method == 'POST':
         fake = Faker('pt_BR')
-        clientes_a_criar = 20
+        clientes_a_criar = 200
         clientes_criados = 0
         
         # Lista de estados brasileiros (para garantir que a sigla funcione)
@@ -281,7 +256,7 @@ def gerar_clientes_teste_view(request):
                     bairro=fake.city_suffix(),
                     cidade=fake.city(),
                     estado=fake.estado(),
-                    sgEstado=sigla_estado, # USANDO A VARIÁVEL CORRIGIDA
+                    sgEstado=sigla_estado,
                     pais='Brasil',
                     cep=''.join(random.choices('0123456789', k=8))[:9],
                     telefone=fake.phone_number()[:20],
@@ -354,15 +329,6 @@ def inicializar_tabelas_antt_view(request):
     return redirect(reverse('cotacao_bid_nova'))
 
 
-# def api_search_antt_view(request):
-#     term = request.GET.ger('q','').strip().lower()
-#     if not term:
-#         return JsonResponse([], safe=False)
-    
-#     tabelas = tabelaANTT.objects.filter(Descricao__icontains=term).values('idtabelaANTT','Descricao')
-#     return JsonResponse(list(tabelas), safe=False)
-
-
 def api_search_antt_view(request):
     """Retorna as tabelas ANTT para popular o datalist."""
     q = request.GET.get('q', '').strip()
@@ -372,7 +338,7 @@ def api_search_antt_view(request):
         tabelas = tabelaANTT.objects.all()
 
     data = [
-        {"id": t.idTabelaANTT, "Descricao": t.Descricao}
+        {"id": t.idTabelaANTT,"codTabelaANTT": t.codTabelaANTT, "Descricao": t.Descricao}
         for t in tabelas
     ]
     return JsonResponse(data, safe=False)
@@ -382,20 +348,6 @@ def api_search_antt_view(request):
 
 
 #metodos novos
-
-# def cotacao_bid_nova_view(request):
-#     clientes =CadCliente.objects.all().order_by('razaoSocial')
-#     tabela_antt = tabelaANTT.objects.all().order_by('Descricao')
-
-#     context ={
-#         'clientes':clientes,
-#         'tabela_antt': tabela_antt,
-#     }
-
-#     return render(request, 'cotacao/cotacao_bid_nova.html', context)
-
-
-
 
 def api_search_clients_view(request):
     search_term = request.GET.get('q', '')
@@ -412,41 +364,6 @@ def api_search_clients_view(request):
 
     # Converte o QuerySet para lista de dicionários e retorna como JSON
     return JsonResponse(list(clients), safe=False)
-
-
-# def proxima_etapa_bid_view(request):    
-    
-#     if request.method =='POST':
-#         cliente_id = request.POST.get('cliente_id')
-#         tabela_antt_id = request.POST.get('tabela_antt_id')
-
-
-#         if not cliente_id or not tabela_antt_id:
-#             return redirect(reverse('cotacao_bid_nova'))
-        
-#         try:
-#             cliente = get_object_or_404(CadCliente, idCliente=cliente_id)
-#             tabela_antt = get_object_or_404(tabelaANTT, idTabelaANTT=tabela_antt_id)
-
-#             novo_bid = CotacaoBid.objects.create(
-#                 idCliente = cliente,
-#                 tabelaANTT=tabela_antt,
-#                 rounds = 5,
-#                 nCotacaoBid = 'TEMP'
-#             )
-#             #Gerando o nCotacaoBID "BID" + ID CLIENTE + IDCOTACAOBID
-#             numero_final = f"BID{cliente.idCliente:04d}{novo_bid.idCotacaoBid:04d}"
-#             novo_bid.nCotacaoBid = numero_final#ATUALIZA E SALVA O nCotacaoBID
-#             novo_bid.save() 
-#             return redirect(reverse('cotacao_bid_detalhe', kwargs={'bid_id': novo_bid.idCotacaoBid}))
-
-#         except Exception as e:
-#             print(f"Erro ao criar o BID: {e}")
-#             return redirect(reverse('cotacao_bid_nova'))
-
-
-
-#     return redirect('cotacao_bid_nova')
 
 
 def proxima_etapa_bid_view(request):    
@@ -738,29 +655,51 @@ def upload_rotas_importar(request, bid_id):
         if df_dict is None:
             return JsonResponse({'error': 'Nenhuma planilha carregada na sessão.'})
         df = pd.DataFrame(df_dict)
+        df = df.fillna('')
 
-        # Monta lista de rotas
-        rotas = []
+        cotacao = CotacaoBid.objects.get(id=bid_id)
+        cliente = cotacao.idCliente
+
+
+    # Monta lista de rotas
+        registros = []
+        registros = []
         for _, row in df.iterrows():
-            rota = {
-                'origem': row.get(origem_col, '').strip(),
-                'destino': row.get(destino_col, '').strip()
-            }
-            if veiculo_col:
-                rota['veiculo'] = row.get(veiculo_col, '').strip()
-            rotas.append(rota)
+            origem = str(row.get(origem_col, '')).strip()
+            destino = str(row.get(destino_col, '')).strip()
+            if not origem or not destino:
+                # ignora linhas sem origem/destino
+                continue
 
-        # Aqui você salva no banco de dados
-        # Exemplo: Rota.objects.bulk_create([...])
 
-        return JsonResponse({'success': True})
+            veiculo = ''
+            if veiculo_col and veiculo_col in df.columns:
+                veiculo = str(row.get(veiculo_col, '')).strip()
+
+                detalhe = DetalheCotacaoBid(
+
+                    cdRota = f"idCliente-{cotacao}",
+                    cliente = cliente,
+                    cotacao = cotacao,
+                    origem = origem,
+                    destino= destino,
+                    tpVeiculoQualp = veiculo
+                )
+                registros.append(detalhe)
+
+        if registros:
+            DetalheCotacaoBid.objects.bulk_create(registros)
+        else:
+            return JsonResponse({'error': 'Nenhum registro valido encontrato na planilha'}, status=400)
+        
+        del request.session[f'´preview_{bid_id}']
+
+
+    except CotacaoBid.DoesNotExist:
+        return JsonResponse({'error': 'Cotação não encontrada.'}, status=404)
 
     except Exception as e:
-        return JsonResponse({'error': str(e)})
-
-
-
-
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 

@@ -41,7 +41,7 @@ class CadVeic(models.Model):
 class tabelaANTT(models.Model):
 
     idTabelaANTT = models.AutoField(primary_key=True)
-    codTabelaANTT = models.CharField(max_length=7, unique=True, null=True, blank=True)
+    codTabelaANTT = models.CharField(max_length=8, unique=True, null=True, blank=True)
     Descricao = models.CharField(max_length=255, unique= True, null=True, blank=True)
 
     def __str__(self):
